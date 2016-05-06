@@ -42,11 +42,15 @@ Setup: movmr State r6
 	
 PrintDir: sojz r9 PrintR
 	jmp PrintL
+	
 PrintR: outci #114
 	outcr r0
+	movar Tuples r3
 	ret
+	
 PrintL: outci #108
 	outcr r0
+	movar Tuples r3
 	ret
 	
 PrintTuple: movrr r1 r8
@@ -72,13 +76,10 @@ PrintTuple: movrr r1 r8
 	jmp PrintDir
 
 ToPrint: jsr PrintTuple
-	movar Tuples r3
-	jmp PrintTuples
 
 PrintTuples: addir #1 r1
 	cmprr r1 r2
 	jmpne ToPrint
-	jmp BeginMess
 
 BeginMess: outs StateMess
 	printi r6
