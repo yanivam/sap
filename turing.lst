@@ -75,6 +75,7 @@ ToPrint: jsr PrintTuple
 PrintTuples:cmpmr NumTuples r1
 	addir #1 r1
 	jmpne ToPrint   ;print out next tuple if this is not last tuple
+	movir #0 r1
 	outcr r0
 
 BeginMess: outs StateMess
@@ -89,7 +90,7 @@ BeginMess: outs StateMess
 	outcr r0
 
 Run: jsr GetInput
-	jsr PrepSearch
+	jsr LoopSearch
 	jsr TraceLine
 	jsr UpdateTape
 	addir #2 r4
@@ -102,17 +103,17 @@ Run: jsr GetInput
 	addir #1 r2
 	jmp Run
 
-GetInput: movmr Head r7
-	movar Tape r8
+GetInput: movar Tape r8
 	addir #1 r8
-	addrr r7 r8   ;get to current place in tape
+	addrr r7 r8   ;get to current place in tape (r7 holds head position)
 	movxr r7 r9   ;get character at location and put in InputChar label
 	movrm r9 InputChar
 	ret
 	
-PrepSearch: movir #0 r1
-	
-FindTuple: 
+LoopSearch: cmpmr NumTuples r1
+	addir #1 r1
+	jmpne FindTuple
+	jmp End
 
 	cmprr r8 r9
 	jmpne End
@@ -160,7 +161,4 @@ PrintTape: movmr Tuples r9
 
 End: outs EndMess
 	outs InitialTape
-	outs StepsMess1
-	printi r2
-	outs StepsMess2
 	halt
