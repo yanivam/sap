@@ -22,8 +22,8 @@ EndMess: .String "Final Tape: "
 
 ;purposes of each register
 ;0: holds newLine ASCII
-;1: used in PrintTuples to obtain parameters of each tuple
-;2: counts number of steps
+;1: tuple number
+;2: 
 ;3: used in FindTuple to compare input character
 ;4: holds location of correct tuple
 ;5: holds label of tape, also in FindTuple to compare state and input character
@@ -36,7 +36,6 @@ Setup: movmr State r6
 	movmr Head r7
 	movmr NewLine r0
 	movir #0 r1
-	movmr NumTuples r2
 	movar Tuples r3
 	jmp PrintTuples
 	
@@ -78,7 +77,7 @@ PrintTuple: movrr r1 r8
 ToPrint: jsr PrintTuple
 
 PrintTuples: addir #1 r1
-	cmprr r1 r2
+	cmpmr NumTuples r1
 	jmpne ToPrint
 
 BeginMess: outs StateMess
