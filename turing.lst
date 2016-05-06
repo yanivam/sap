@@ -20,17 +20,17 @@ HeadMess: .String "Initial Head Position: "
 TapeMess: .String "Initial Tape: "
 EndMess: .String "Final Tape: "
 
-;purposes of each register
+;purposes of each register (mostly)
 ;0: holds newLine ASCII
 ;1: tuple number
-;2: 
-;3: used in FindTuple to compare input character
-;4: holds location of correct tuple
-;5: holds label of tape, also in FindTuple to compare state and input character
+;2: holds current tuple?
+;3: holds address of first tuple
+;4: ?
+;5: ?
 ;6: holds current state
 ;7: holds head position
-;8: holds location of tuples and the counter when tuples are iterated through
-;9: holds location of the end of the tuples and the end of the tape
+;8: ?
+;9: ?
 
 Setup: movmr State r6
 	movmr Head r7
@@ -52,9 +52,9 @@ PrintL: outci #108
 	movar Tuples r3
 	ret
 	
-PrintTuple: movrr r1 r8
-	mulir #5 r8
-	addrr r8 r3
+PrintTuple: movrr r1 r9
+	mulir #5 r9
+	addrr r9 r3
 	movxr r3 r9
 	printi r9
 	outci #32
