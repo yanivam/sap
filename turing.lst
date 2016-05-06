@@ -18,6 +18,7 @@ TupMess: .String "Tuples:"
 StateMess: .String "Initial State: "
 HeadMess: .String "Initial Head Position: "
 TapeMess: .String "Initial Tape: "
+OutBoundsMess: .String "Out of bounds. Program Terminated."
 EndMess: .String "Final Tape: "
 
 ;purposes of each register (mostly)
@@ -165,6 +166,7 @@ AfterHead: subrr r6 r7
 
 UpdateSystem: jsr EnterTuple
 	jsr ChangeTape
+	jsr CheckBounds
 	ret
 
 EnterTuple: movmr TupMatch r2
@@ -190,6 +192,16 @@ ChangeTape: movmr HeadPos r6
 	movrm r7 Head
 	ret
 	
+CheckBounds: movmr Tape r5
+	movmr Head r7
+	cmpir #0 r7
+	jmpp PrintError   ;if head is less than location 0, compare > 0, out of bounds
+	cmprr r5 r7
+	jmpn PrintError   ;if head is greater than tape length, compare < 0, out of bounds
+	ret
+	
+PrintError: outs OutBoundsMess
+	
 End: outs EndMess
-	outs InitialTape
+	outs Tape
 	halt
