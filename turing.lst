@@ -22,7 +22,7 @@ EndMess: .String "Final Tape: "
 
 ;purposes of each register (mostly)
 ;0: holds newLine ASCII
-;1: tuple number
+;1: holds tuple number
 ;2: holds current tuple?
 ;3: holds address of first tuple
 ;4: ?
@@ -38,19 +38,6 @@ Setup: movmr State r6
 	movir #0 r1
 	movar Tuples r3
 	jmp PrintTuples
-	
-PrintDir: sojz r9 PrintR
-	jmp PrintL
-	
-PrintR: outci #114
-	outcr r0
-	movar Tuples r3
-	ret
-	
-PrintL: outci #108
-	outcr r0
-	movar Tuples r3
-	ret
 	
 PrintTuple: movrr r1 r9
 	mulir #5 r9
@@ -72,13 +59,23 @@ PrintTuple: movrr r1 r9
 	outci #32
 	addir #1 r3
 	movxr r3 r9
-	jmp PrintDir
-
+	sojz r9 PrintR
+	outci #108
+	outcr r0
+	movar Tuples r3
+	ret
+	
+PrintR: outci #114
+	outcr r0
+	movar Tuples r3
+	ret
+	
 ToPrint: jsr PrintTuple
 
 PrintTuples: addir #1 r1
 	cmpmr NumTuples r1
 	jmpne ToPrint
+	outcr r0
 
 BeginMess: outs StateMess
 	printi r6
