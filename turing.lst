@@ -29,7 +29,7 @@ EndMess: .String "Final Tape: "
 ;5: ?
 ;6: holds current state
 ;7: holds head position
-;8: ?
+;8: holds current location at tape in memory
 ;9: ?
 
 Setup: movmr State r6   ;for beginning message printout
@@ -72,8 +72,8 @@ PrintR: outci #114
 	
 ToPrint: jsr PrintTuple
 
-PrintTuples: addir #1 r1
-	cmpmr NumTuples r1
+PrintTuples:cmpmr NumTuples r1
+	addir #1 r1
 	jmpne ToPrint   ;print out next tuple if this is not last tuple
 	outcr r0
 
@@ -89,8 +89,9 @@ BeginMess: outs StateMess
 	outcr r0
 
 Run: jsr GetInput
-	jsr 
-	jsr PrintTape
+	jsr PrepSearch
+	jsr TraceLine
+	jsr UpdateTape
 	addir #2 r4
 	movxr r4 r6
 	addir #1 r4
@@ -104,18 +105,14 @@ Run: jsr GetInput
 GetInput: movmr Head r7
 	movar Tape r8
 	addir #1 r8
-	addrr r7 r8
-	movxr r7 r9
+	addrr r7 r8   ;get to current place in tape
+	movxr r7 r9   ;get character at location and put in InputChar label
 	movrm r9 InputChar
 	ret
 	
-FindTuple: movar Tuples r5
-	movar Tuples r6
-	movir #5 r7
-	mulmr NumTuples r7
-	addrr r7 r6
-
-
+PrepSearch: movir #0 r1
+	
+FindTuple: 
 
 	cmprr r8 r9
 	jmpne End
@@ -140,7 +137,7 @@ PrintTape: movmr Tuples r9
 	addrr r5 r7
 	outci #91   ;ASCII for left bracket
 	outcx r7
-     outci #93   ;ASCII for right bracket
+	outci #93   ;ASCII for right bracket
 	outcb r7 r9
 	movrr r4 r1
 	outs S
