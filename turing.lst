@@ -1,4 +1,4 @@
-.start MessSetup
+.start Setup
 State: .Integer #0
 Head: .Integer #0
 Tape: .String "_101010_"
@@ -32,9 +32,53 @@ EndMess: .String "Final Tape: "
 ;8: holds location of tuples and the counter when tuples are iterated through
 ;9: holds location of the end of the tuples and the end of the tape
 
-MessSetup: movmr State r6
+Setup: movmr State r6
 	movmr Head r7
 	movmr NewLine r0
+	movir #0 r1
+	movmr NumTuples r2
+	movar Tuples r3
+	jmp PrintTuples
+	
+PrintDir: sojz r9 PrintR
+	jmp PrintL
+PrintR: outci #114
+	outcr r0
+	ret
+PrintL: outci #108
+	outcr r0
+	ret
+	
+PrintTuple: movrr r1 r8
+	mulir #5 r8
+	addrr r8 r3
+	movxr r3 r9
+	printi r9
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	outcr r9
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	printi r9
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	outcr r9
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	jmp PrintDir
+
+ToPrint: jsr PrintTuple
+	movar Tuples r3
+	jmp PrintTuples
+
+PrintTuples: addir #1 r1
+	cmprr r1 r2
+	jmpne ToPrint
+	jmp BeginMess
 
 BeginMess: outs StateMess
 	printi r6
