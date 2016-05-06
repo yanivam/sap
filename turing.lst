@@ -32,7 +32,7 @@ EndMess: .String "Final Tape: "
 ;8: ?
 ;9: ?
 
-Setup: movmr State r6
+Setup: movmr State r6   ;for beginning message printout
 	movmr Head r7
 	movmr NewLine r0
 	movir #0 r1
@@ -41,28 +41,28 @@ Setup: movmr State r6
 	
 PrintTuple: movrr r1 r9
 	mulir #5 r9
-	addrr r9 r3
+	addrr r9 r3   ;go to spot of tuple to be printed
 	movxr r3 r9
-	printi r9
+	printi r9   ;current state
+	outci #32   ;ASCII for space
+	addir #1 r3
+	movxr r3 r9
+	outcr r9   ;input character
 	outci #32
 	addir #1 r3
 	movxr r3 r9
-	outcr r9
+	printi r9   ;new state
 	outci #32
 	addir #1 r3
 	movxr r3 r9
-	printi r9
+	outcr r9   ;output character
 	outci #32
 	addir #1 r3
 	movxr r3 r9
-	outcr r9
-	outci #32
-	addir #1 r3
-	movxr r3 r9
-	sojz r9 PrintR
+	sojz r9 PrintR   ;jump to print r if direction is 1, continue to print l
 	outci #108
 	outcr r0
-	movar Tuples r3
+	movar Tuples r3   ;reset tuple address for next time subroutine is called
 	ret
 	
 PrintR: outci #114
@@ -74,7 +74,7 @@ ToPrint: jsr PrintTuple
 
 PrintTuples: addir #1 r1
 	cmpmr NumTuples r1
-	jmpne ToPrint
+	jmpne ToPrint   ;print out next tuple if this is not last tuple
 	outcr r0
 
 BeginMess: outs StateMess
