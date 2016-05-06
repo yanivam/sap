@@ -17,7 +17,6 @@ var length = 0
 var programCounter = 0
 var compareRegister = 0  //difference between compared values
 var stackRegister = 0  //OK: 0, push when full: 1, pop when empty: 2
-var jumpCounter = 0  //stores memory location before subroutine jump
 
 struct Stack {
     var stack: [Int]
@@ -324,17 +323,17 @@ func jmpp(p1: Int) {
 }
 
 func jsr(p1: Int) {
-  jumpCounter = programCounter + 2
   if stackRegister != 1 {
     for r in 5...9 {
       stack.push(registers[r])
     }
   }
+  stack.push(programCounter + 2)
   programCounter = p1
 }
 
 func ret() {
-  programCounter = jumpCounter
+  programCounter = stack.pop()
   if stackRegister != 2 {
     for r in 9...5 {
     registers[r] = stack.pop()
