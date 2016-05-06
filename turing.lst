@@ -71,9 +71,9 @@ PrintR: outci #114
 	ret
 	
 ToPrint: jsr PrintTuple
-
-PrintTuples:cmpmr NumTuples r1
 	addir #1 r1
+
+PrintTuples: cmpmr NumTuples r1
 	jmpne ToPrint   ;print out next tuple if this is not last tuple
 	movir #0 r1
 	outcr r0
@@ -113,8 +113,9 @@ GetInput: movar Tape r8
 LoopSearch: cmpmr NumTuples r1
 	addir #1 r1
 	jmpne FindTuple
-	jmp End
+	jmp End   ;if tuple not found, end run
 
+FindTuple: 
 	cmprr r8 r9
 	jmpne End
 	movrr r8 r4
