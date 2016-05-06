@@ -3,9 +3,9 @@ State: .Integer #0
 Head: .Integer #0
 Tape: .String "_101010_"
 InputChar: .Integer #0
-NewState: .Integer #0
 OutputChar: .Integer #0
-HeadShift: .Integer #0
+Direction: .Integer #0
+HeadPos: .Integer #0   ;holds position of head in whole memory
 TupMatch: .Integer #0	  ;holds # of correct tuple
 NumTuples: .Integer #5
 Tuples: .tuple \ 0 _ 0 _ r \
@@ -91,28 +91,21 @@ BeginMess: outs StateMess
 Run: jsr GetInput
 	jsr FindTuple
 	jsr TraceLine
-	jsr UpdateTape
-	addir #2 r4
-	movxr r4 r6
-	addir #1 r4
-	movxx r4 r7
-	addir #1 r4
-	movxr r4 r4
-	addrr r4 r7
-	addir #1 r2
+	jsr UpdateSystem
 	jmp Run
 
 GetInput: movar Tape r8
-	addir #1 r8
-	addrr r7 r8   ;get to current place in tape (r7 holds head position)
-	movxr r7 r9   ;get character at location and put in InputChar label
+	addir #1 r8   ;first character of tape
+	movmr Head r7
+	addrr r7 r8   ;get to current place in tape
+	movrm r8 HeadPos
+	movxr r8 r9   ;get character at location and put in InputChar label
 	movrm r9 InputChar
 	ret
 
-FindTuple: movir #0 r1
+FindTuple: movir #0 r1   ;resets loop
 	movar Tuples r3
 	jsr LoopSearch
-	movir #0 r1
 	movar Tuples r3
 	ret
 	
@@ -125,7 +118,7 @@ CheckTuple: movrr r1 r9
 	addrr r9 r3   ;go to memory location of tuple
 	movxr r3 r9
 	cmpmr State r9
-	jmpz CheckInput   ;if state matched, input character
+	jmpz CheckInput   ;if state matched, check input character, else move to next tuple
 	addir #1 r1
 	movar Tuples r3
 	jmp LoopSearch
@@ -133,43 +126,70 @@ CheckTuple: movrr r1 r9
 CheckInput: addir #1 r3
 	movxr r3 r9
 	cmpmr InputChar r9
-	jmpz SaveTuple
+	jmpz SaveTuple   ;if IC matched, save tuple, otherwise move to next tuple
 	addir #1 r1
 	movar Tuples r3
 	jmp LoopSearch
 	
-SaveTuple: movrr r1 r2
+SaveTuple: movrm r1 TupMatch
 	ret
 
-PrintTape: movmr Tuples r9
-	subrr r5 r7
-	subrr r7 r9
-	subir #1 r9
-	outcb r5 r7
-	addrr r5 r7
-	outci #91   ;ASCII for left bracket
-	outcx r7
+TraceLine: jsr PrintTape
+	movmr TupMatch r1   ;PrintTuple uses r1 to print specific tuple
+	jsr PrintTuple
+	ret
+	
+PrintTape: movar Tape r5
+	movmr HeadPos r6
+	movar Tape r7
+	addxr r5 r7   ;nd of tape
+	jsr BeforeHead
+	jsr AtHead
+	jsr AfterHead
+	ret
+	
+BeforeHead: addir #1 r5
+	subrr r5 r6
+	outcb r5 r6
+	ret
+	
+AtHead: outci #91   ;ASCII for left bracket
+	outcx r6
 	outci #93   ;ASCII for right bracket
-	outcb r7 r9
-	movrr r4 r1
-	outs S
-	outcx r1
-	addir #1 r1
-	outs I
-	outcx r1
-	addir #1 r1
-	outs NS
-	outcx r1
-	addir #1 r1
-	outs O
-	outcx r1
-	addir #1 r1
-	outs D
-	outcx r1
-	addir #1 r1
-	outcr r0
+	ret
+	
+AfterHead: subrr r6 r7
+	addir #1 r6
+	outcb r6 r7
 	ret
 
+UpdateSystem: jsr EnterTuple
+	jsr ChangeTape
+	ret
+
+EnterTuple: movmr TupMatch r2
+	mulir #5 r2
+	addrr r2 r3
+	addir #2 r3   ;by now at new state of saved tuple
+	movxr r3 r2
+	movrm r2 State
+	addir #1 r3
+	movxr r3 r2
+	movrm r2 OutputChar
+	addir #1 r3
+	movxr r3 r2
+	movrm r2 Direction
+	ret
+	
+ChangeTape: movmr HeadPos r6
+	movmr Head r7
+	movmr Direction r8
+	movmr OutputChar r9
+	movrx r9 r6   ;replace character at head position
+	addrr r8 r7   ;shift head
+	movrm r7 Head
+	ret
+	
 End: outs EndMess
 	outs InitialTape
 	halt
