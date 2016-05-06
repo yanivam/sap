@@ -1,0 +1,136 @@
+.start Begin
+InitialState: .Integer #0
+InitialHead: .Integer #0
+InitialTape: .String "_101010_"
+TMess: .String "Tuples"
+StartMess: .String "Begin execution with:"
+ISMess: .String "Initial State: "
+IHMess: .String "Initial Head Position: "
+ITMess: .String "Initial Tape: "
+EndMess: .String "End Execution With Final Tape:"
+StepsMess1: .String "Execution took "
+StepsMess2: .String " steps"
+S: .String "S: "
+I: .String "I: "
+NS: .String "NS: "
+O: .String "O: "
+D: .String "D: "
+Tuples: .tuple \ 0 _ 0 _ r \             ; r = 1, l = -1?
+	   .tuple \ 0 0 1 1 r \
+	   .tuple \ 0 1 1 0 r \
+	   .tuple \ 1 1 1 0 r \
+	   .tuple \ 1 0 1 1 r \
+
+;purposes of each register
+;0: holds newLine ASCII
+;1: used in PrintTuples to obtain parameters of each tuple
+;2: counts number of steps
+;3: used in FindTuple to compare input character
+;4: holds location of correct tuple
+;5: holds label of tape, also in FindTuple to compare state and input character
+;6: holds current state
+;7: holds head position
+;8: holds location of tuples and the counter when tuples are iterated through
+;9: holds location of the end of the tuples and the end of the tape
+
+Begin: movmr InitialState r6
+	movar InitialTape r5
+	movrr r5 r7
+	addir #1 r7
+	addmr InitialHead r7
+	addir #1 r5
+	movar Tuples r8
+	movrr r8 r9
+	addmr Tuples r9
+	addir #10 r0
+
+PrintTuples: outs TMess
+	movxr r8 r1
+	printi r1
+	outci #32   ;ASCII for space
+	addir #1 r8
+	movxr r8 r1
+	printi r1
+	outci #32
+	addir #1 r8
+	movxr r8 r1
+	printi r1
+	outci #32
+	addir #1 r8
+	movxr r8 r1
+	printi r1
+	outci #32
+	addir #1 r8
+	movxr r8 r1
+	printi r1
+	outci #32
+	addir #1 r8
+	outcr r0
+	cmprr r8 r9
+	jmpne PrintTuples
+	movar Tuples r8
+	addir #1 r8
+	outcr r0
+
+Run: jsr FindTuple       ;don't forget start messages
+	jsr PrintTape
+	addir #2 r4
+	movxr r4 r6
+	addir #1 r4
+	movxx r4 r7
+	addir #1 r4
+	movxr r4 r4
+	addrr r4 r7
+	addir #1 r2
+	jmp Run
+	
+FindTuple: cmprr r8 r9
+	jmpne End
+	movrr r8 r4
+	movxr r8 r5
+	cmprr r6 r5
+	addir #4 r8
+	jmpne FindTuple
+	addir #1 r8
+	movxr r8 r5
+	movxr r7 r3
+	cmprr r3 r5
+	addir #3 r8
+	jmpne FindTuple
+	ret
+
+PrintTape: movmr Tuples r9
+	subrr r5 r7
+	subrr r7 r9
+	subir #1 r9
+	outcb r5 r7
+	addrr r5 r7
+	outci #91   ;ASCII for left bracket
+	outcx r7
+     outci #93   ;ASCII for right bracket
+	outcb r7 r9
+	movrr r4 r1
+	outs S
+	outcx r1
+	addir #1 r1
+	outs I
+	outcx r1
+	addir #1 r1
+	outs NS
+	outcx r1
+	addir #1 r1
+	outs O
+	outcx r1
+	addir #1 r1
+	outs D
+	outcx r1
+	addir #1 r1
+	outcr r0
+	ret
+
+End: outs EndMess
+	outs InitialTape
+	outs StepsMess1
+	printi r2
+	outs StepsMess2
+	halt
