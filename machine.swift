@@ -337,7 +337,7 @@ func jsr(p1: Int) {
 
 func ret() {
   programCounter = stack.pop()
-  for r in 9...5 {
+  for r in 9.stride(through: 5, by: -1) {
     registers[r] = stack.pop()
     if stack.isEmpty() {
       stackRegister = 2
