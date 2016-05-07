@@ -205,3 +205,5 @@ PrintError: outs OutBoundsMess
 End: outs EndMess
 	outs Tape
 	halt
+
+.end
