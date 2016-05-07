@@ -323,9 +323,12 @@ func jmpp(p1: Int) {
 }
 
 func jsr(p1: Int) {
-  if stackRegister != 1 {
-    for r in 5...9 {
-      stack.push(registers[r])
+  for r in 5...9 {
+    stack.push(registers[r])
+    if stack.isFull() {
+      stackRegister = 1
+    } else {
+      stackRegister = 0
     }
   }
   stack.push(programCounter + 2)
@@ -334,29 +337,32 @@ func jsr(p1: Int) {
 
 func ret() {
   programCounter = stack.pop()
-  if stackRegister != 2 {
-    for r in 9...5 {
+  for r in 9...5 {
     registers[r] = stack.pop()
+    if stack.isEmpty() {
+      stackRegister = 2
+    } else {
+      stackRegister = 0
     }
   }
 }
 
 func push(p1: Int) {
-  if stackRegister != 1 {
-    stack.push(registers[p1])
-  }
+  stack.push(registers[p1])
   if stack.isFull() {
     stackRegister = 1
+  } else {
+    stackRegister = 0
   }
   programCounter += 2
 }
 
 func pop(p1: Int) {
-  if stackRegister != 2 {
-    registers[p1] = stack.pop()
-  }
+  registers[p1] = stack.pop()
   if stack.isEmpty() {
     stackRegister = 2
+  } else {
+    stackRegister = 0
   }
   programCounter += 2
 }
@@ -467,7 +473,7 @@ func runVirtualMachine() {
     let param2 = memory[programCounter + 2]
     let param3 = memory[programCounter + 3]
     switch Instruction(rawValue: code)! {
-            case .clrr:
+      case .clrr:
         clrr(param1)
       case .clrx:
         clrx(param1)
