@@ -6,7 +6,6 @@ InputChar: .Integer #0
 OutputChar: .Integer #0
 Direction: .Integer #0
 HeadPos: .Integer #0   ;holds position of head in whole memory
-Steps: .Integer #0
 TupMatch: .Integer #0	  ;holds # of correct tuple
 NumTuples: .Integer #5
 Tuples: .tuple \ 0 _ 0 _ r \
@@ -27,19 +26,15 @@ StepsMess: .String "Number of steps taken: "
 ;purposes of each register (mostly)
 ;0: holds newLine ASCII
 ;1: holds tuple number
-;2: ?
 ;3: holds address of first tuple
-;4: holds indicator of if tuple found or not
-;5: ?
-;6: holds current state
-;7: holds head position
-;8: holds current location at tape in memory
-;9: ?
+;4: holds number of steps
+;all others placeholders for computations
 
 Setup: movmr State r6   ;for beginning message printout
 	movmr Head r7
 	movmr NewLine r0
 	movir #0 r1
+	movir #0 r4
 	movar Tuples r3
 	outs TupMess
 	outcr r0
@@ -98,7 +93,6 @@ BeginMess: outs BreakLine
 
 Run: jsr GetInput
 	jsr FindTuple
-
 	jsr TraceLine
 	jsr UpdateSystem
 	jmp Run
@@ -115,14 +109,12 @@ GetInput: movar Tape r8
 FindTuple: movir #0 r1   ;resets loop
 	movar Tuples r3
 	jsr LoopSearch
-	jsr Continue
 	movar Tuples r3
 	ret
 	
 LoopSearch: cmpmr NumTuples r1
 	jmpne CheckTuple
-	movir #0 r4   ;means tuple match not found
-	ret
+	jmp End
 
 CheckTuple: movrr r1 r9
 	mulir #5 r9
@@ -143,13 +135,7 @@ CheckInput: addir #1 r3
 	jmp LoopSearch
 	
 SaveTuple: movrm r1 TupMatch
-	movir #1 r4   ;means tuple match is found
-	ret
-	
-Continue: sojnz r4 End   ;end run if tuple not found
-	movmr Steps r2
-	addir #1 r2
-	movrm r2 Steps
+	addir #1 r4
 	ret
 
 TraceLine: jsr PrintTape
@@ -225,7 +211,6 @@ End: outcr r0
 	outs Tape
 	outcr r0
 	outs StepsMess
-	movmr Steps r2
-	printi r2
+	printi r4
 	halt
 	.end
