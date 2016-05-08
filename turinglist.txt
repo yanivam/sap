@@ -14,6 +14,7 @@ Tuples: .tuple \ 0 _ 0 _ r \
 	   .tuple \ 1 1 1 0 r \
 	   .tuple \ 1 0 1 1 r \
 NewLine: .Integer #10
+StartMess: .String "Running Turing Machine"
 TupMess: .String "Tuples:"
 BreakLine: .String "_______________________"
 StateMess: .String "Initial State: "
@@ -36,6 +37,9 @@ Setup: movmr State r6   ;for beginning message printout
 	movir #0 r1
 	movir #0 r4
 	movar Tuples r3
+	outs StartMess
+	outcr r0
+	outcr r0
 	outs TupMess
 	outcr r0
 	jmp PrintTuples
