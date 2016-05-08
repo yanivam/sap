@@ -160,7 +160,7 @@ TraceLine: jsr PrintTape
 PrintTape: movar Tape r5
 	movmr HeadPos r6
 	movar Tape r7
-	addxr r5 r7   ;nd of tape
+	addxr r5 r7   ;end of tape
 	jsr BeforeHead
 	jsr AtHead
 	jsr AfterHead
