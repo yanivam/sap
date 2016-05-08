@@ -1,0 +1,84 @@
+.start Setup
+State: .Integer #0
+Head: .Integer #0
+Tape: .String "_101010_"
+InputChar: .Integer #0
+OutputChar: .Integer #0
+Direction: .Integer #0
+HeadPos: .Integer #0   ;holds position of head in whole memory
+TupMatch: .Integer #0	  ;holds # of correct tuple
+NumTuples: .Integer #5
+Tuples: .tuple \ 0 _ 0 _ r \
+	   .tuple \ 0 0 1 1 r \
+	   .tuple \ 0 1 1 0 r \
+	   .tuple \ 1 1 1 0 r \
+	   .tuple \ 1 0 1 1 r \
+NewLine: .Integer #10
+TupMess: .String "Tuples:"
+StateMess: .String "Initial State: "
+HeadMess: .String "Initial Head Position: "
+TapeMess: .String "Initial Tape: "
+OutBoundsMess: .String "Out of bounds. Program Terminated."
+EndMess: .String "Final Tape: "
+
+;purposes of each register (mostly)
+;0: holds newLine ASCII
+;1: holds tuple number
+;2: holds current tuple?
+;3: holds address of first tuple
+;4: ?
+;5: ?
+;6: holds current state
+;7: holds head position
+;8: holds current location at tape in memory
+;9: ?
+
+Setup: movmr State r6   ;for beginning message printout
+	movmr Head r7
+	movmr NewLine r0
+	movir #0 r1
+	movar Tuples r3
+	
+PrintTuple: movrr r1 r9
+	mulir #5 r9
+	addrr r9 r3   ;go to spot of tuple to be printed
+	movxr r3 r9
+	printi r9   ;current state
+	outci #32   ;ASCII for space
+	addir #1 r3
+	movxr r3 r9
+	outcr r9   ;input character
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	printi r9   ;new state
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	outcr r9   ;output character
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	sojz r9 PrintR   ;jump to print r if direction is 1, continue to print l
+	outci #108
+	outcr r0
+	movar Tuples r3   ;reset tuple address for next time subroutine is called
+	outcr r0
+	jmp BeginMess
+	
+PrintR: outci #114
+	outcr r0
+	movar Tuples r3
+	outcr r0
+
+BeginMess: outs StateMess
+	printi r6
+	outcr r0
+	outs HeadMess
+	printi r7
+	outcr r0
+	outs TapeMess
+	outs Tape
+    halt
+    
+.end
