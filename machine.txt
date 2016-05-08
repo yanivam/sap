@@ -369,10 +369,12 @@ func pop(p1: Int) {
 
 func stackc(p1: Int) {
   registers[p1] = stackRegister
+  programCounter += 2
 }
 
 func outci(p1: Int) {
   print(Character(UnicodeScalar(p1)), terminator: "")
+  programCounter += 3
 }
 
 func outcr(p1: Int) {
