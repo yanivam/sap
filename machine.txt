@@ -411,7 +411,7 @@ func readi(p1: Int, p2: Int) {
 }
 
 func printi(p1: Int) {
-  print("\(registers[p1]) ", terminator:"")
+  print("\(registers[p1])", terminator:"")
   programCounter += 2
 }
 
