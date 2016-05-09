@@ -473,7 +473,6 @@ func runVirtualMachine() {
   while code != 0 {
     let param1 = memory[programCounter + 1]
     let param2 = memory[programCounter + 2]
-    let param3 = memory[programCounter + 3]
     switch Instruction(rawValue: code)! {
       case .clrr:
         clrr(param1)
@@ -496,6 +495,7 @@ func runVirtualMachine() {
       case .movar:
         movar(param1, p2: param2)
       case .movb:
+        let param3 = memory[programCounter + 3]
         movb(param1, p2: param2, p3: param3)
       case .addir:
         addir(param1, p2: param2)
