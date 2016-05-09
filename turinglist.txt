@@ -1,0 +1,220 @@
+.start Setup
+State: .Integer #0
+Head: .Integer #0
+Tape: .String "_101010_"
+InputChar: .Integer #0
+OutputChar: .Integer #0
+Direction: .Integer #0
+HeadPos: .Integer #0   ;holds position of head in whole memory
+TupMatch: .Integer #0	  ;holds # of correct tuple
+NumTuples: .Integer #5
+Tuples: .tuple \ 0 _ 0 _ r \
+	   .tuple \ 0 0 1 1 r \
+	   .tuple \ 0 1 1 0 r \
+	   .tuple \ 1 1 1 0 r \
+	   .tuple \ 1 0 1 1 r \
+NewLine: .Integer #10
+StartMess: .String "Running Turing Machine"
+TupMess: .String "Tuples:"
+BreakLine: .String "_______________________"
+StateMess: .String "Initial State: "
+HeadMess: .String "Initial Head Position: "
+TapeMess: .String "Initial Tape: "
+OutBoundsMess: .String "Out of bounds. Program Terminated."
+EndMess: .String "Final Tape: "
+StepsMess: .String "Number of steps taken: "
+
+;purposes of each register (mostly)
+;0: holds newLine ASCII
+;1: holds tuple number
+;3: holds address of first tuple
+;4: holds number of steps
+;all others placeholders for computations
+
+Setup: movmr State r6   ;for beginning message printout
+	movmr Head r7
+	movmr NewLine r0
+	movir #0 r1
+	movir #0 r4
+	movar Tuples r3
+	outs StartMess
+	outcr r0
+	outcr r0
+	outs TupMess
+	outcr r0
+	jmp PrintTuples
+	
+PrintTuple: movrr r1 r9
+	mulir #5 r9
+	addrr r9 r3   ;go to spot of tuple to be printed
+	movxr r3 r9
+	printi r9   ;current state
+	outci #32   ;ASCII for space
+	addir #1 r3
+	movxr r3 r9
+	outcr r9   ;input character
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	printi r9   ;new state
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	outcr r9   ;output character
+	outci #32
+	addir #1 r3
+	movxr r3 r9
+	sojz r9 PrintR   ;jump to print r if direction is 1, continue to print l
+	outci #108
+	outcr r0
+	movar Tuples r3   ;reset tuple address for next time subroutine is called
+	ret
+	
+PrintR: outci #114
+	outcr r0
+	movar Tuples r3
+	ret
+	
+ToPrint: jsr PrintTuple
+	addir #1 r1
+
+PrintTuples: cmpmr NumTuples r1
+	jmpne ToPrint   ;print out next tuple if this is not last tuple
+	outcr r0
+
+BeginMess: outs BreakLine
+	outcr r0
+	outs StateMess
+	printi r6
+	outcr r0
+	outs HeadMess
+	printi r7
+	outcr r0
+	outs TapeMess
+	outs Tape
+	outcr r0
+	outcr r0
+
+Run: jsr GetInput
+	jsr FindTuple
+	jsr TraceLine
+	jsr UpdateSystem
+	jmp Run
+
+GetInput: movar Tape r8
+	addir #1 r8   ;first character of tape
+	movmr Head r7
+	addrr r7 r8   ;get to current place in tape
+	movrm r8 HeadPos
+	movxr r8 r9   ;get character at location and put in InputChar label
+	movrm r9 InputChar
+	ret
+
+FindTuple: movir #0 r1   ;resets loop
+	movar Tuples r3
+	jsr LoopSearch
+	movar Tuples r3
+	ret
+	
+LoopSearch: cmpmr NumTuples r1
+	jmpne CheckTuple
+	jmp End
+
+CheckTuple: movrr r1 r9
+	mulir #5 r9
+	addrr r9 r3   ;go to memory location of tuple
+	movxr r3 r9
+	cmpmr State r9
+	jmpz CheckInput   ;if state matched, check input character, else move to next tuple
+	addir #1 r1
+	movar Tuples r3
+	jmp LoopSearch
+	
+CheckInput: addir #1 r3
+	movxr r3 r9
+	cmpmr InputChar r9
+	jmpz SaveTuple   ;if IC matched, save tuple, otherwise move to next tuple
+	addir #1 r1
+	movar Tuples r3
+	jmp LoopSearch
+	
+SaveTuple: movrm r1 TupMatch
+	addir #1 r4
+	ret
+
+TraceLine: jsr PrintTape
+	movmr TupMatch r1   ;PrintTuple uses r1 to print specific tuple
+	jsr PrintTuple
+	ret
+	
+PrintTape: movar Tape r5
+	movmr HeadPos r6
+	movar Tape r7
+	addxr r5 r7   ;end of tape
+	jsr BeforeHead
+	jsr AtHead
+	jsr AfterHead
+	outci #9   ;ASCII for horizontal tab
+	ret
+	
+BeforeHead: addir #1 r5
+	subrr r5 r6
+	outcb r5 r6
+	ret
+	
+AtHead: outci #91   ;ASCII for left bracket
+	outcx r6
+	outci #93   ;ASCII for right bracket
+	ret
+	
+AfterHead: subrr r6 r7
+	addir #1 r6
+	outcb r6 r7
+	ret
+
+UpdateSystem: jsr EnterTuple
+	jsr ChangeTape
+	jsr CheckBounds
+	ret
+
+EnterTuple: movmr TupMatch r2
+	mulir #5 r2
+	addrr r2 r3
+	addir #2 r3   ;at new state of saved tuple
+	movxr r3 r2
+	movrm r2 State
+	addir #1 r3
+	movxr r3 r2
+	movrm r2 OutputChar
+	addir #1 r3
+	movxr r3 r2
+	movrm r2 Direction
+	ret
+	
+ChangeTape: movmr HeadPos r6
+	movmr Head r7
+	movmr Direction r8
+	movmr OutputChar r9
+	movrx r9 r6   ;replace character at head position
+	addrr r8 r7   ;shift head
+	movrm r7 Head
+	ret
+	
+CheckBounds: movmr Tape r5
+	movmr Head r7
+	cmpir #0 r7
+	jmpp PrintError   ;if head is less than location 0, compare > 0, out of bounds
+	cmprr r5 r7
+	jmpn PrintError   ;if head is greater than tape length, compare < 0, out of bounds
+	ret
+	
+PrintError: outs OutBoundsMess
+	
+End: outcr r0
+	outs EndMess
+	outs Tape
+	outcr r0
+	outs StepsMess
+	printi r4
+	halt
+	.end

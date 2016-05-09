@@ -1,0 +1,599 @@
+import Foundation
+import Glibc
+
+extension String : CollectionType {
+
+    func unicodeScalarCodePoint() -> UInt32 {
+        let characterString = String(self)
+        let scalars = characterString.unicodeScalars
+        return scalars[scalars.startIndex].value
+    }
+
+}
+
+var memory = [Int]()
+var registers = [Int](count: 10, repeatedValue: 0)
+var length = 0
+var programCounter = 0
+var compareRegister = 0  //difference between compared values
+var stackRegister = 0  //OK: 0, push when full: 1, pop when empty: 2
+
+struct Stack {
+    var stack: [Int]
+    var top: Int
+    init(size: Int) {
+        stack = [Int](count: size, repeatedValue: 0)
+        top = 0
+    }
+
+    func isEmpty() -> Bool {
+        if top == 0 {
+            return true
+        } else {
+            return false
+        }
+    }
+
+    func isFull() -> Bool {
+        if top == stack.capacity {
+            return true
+        } else {
+            return false
+        }
+    }
+
+    mutating func push(element: Int) {
+      stack[top] = element
+      top += 1
+    }
+
+    mutating func pop() -> Int {
+      let index = top - 1
+      top -= 1
+      return stack[index]
+    }
+}
+
+var stack = Stack(size: 100) // stack code below
+
+
+func splitStringIntoParts(expression: String)->[String] {
+  return expression.split{$0 == " "}
+}
+
+func splitStringIntoLines(expression: String)->[String] {
+  return expression.split{$0 == "\n"}
+}
+
+func readFromTextFile(pathName: String)->String {
+  var data: NSData!
+  let myFileManager = NSFileManager.defaultManager()
+  var result = ""
+  data = myFileManager.contentsAtPath(pathName)
+  let dString = NSString(data: data!, encoding: NSUTF8StringEncoding)!
+  for i in 0..<dString.length {
+  result.append(Character(UnicodeScalar(dString.characterAtIndex(i))))
+  }
+  return result
+}
+
+func readAssembledCommands(file: String) {
+  let lines = splitStringIntoLines(readFromTextFile(file))
+  for line in lines {
+    let commands = splitStringIntoParts(line)
+      for c in commands {
+        memory.append(Int(c)!)
+      }
+  }
+  length = memory.removeFirst()
+  programCounter = memory.removeFirst()
+}
+
+enum Instruction: Int {
+  case halt, clrr, clrx, clrm, clrb, movir, movrr, movrm, movmr, movxr, movar,
+       movb, addir, addrr, addmr, addxr, subir, subrr, submr, subxr, mulir,
+       mulrr, mulmr, mulxr, divir, divrr, divmr, divxr, jmp, sojz, sojnz, aojz,
+       aojnz, cmpir, cmprr, cmpmr, jmpn, jmpz, jmpp, jsr, ret, push, pop,
+       stackc, outci, outcr, outcx, outcb, readi, printi, readc, readln, brk,
+       movrx, movxx, outs, nop, jmpne
+}
+
+
+//instruction methods
+
+func clrr(p1: Int) {
+  registers[p1] = 0
+  programCounter += 2
+}
+
+func clrx(p1: Int) {
+  memory[registers[p1]] = 0
+  programCounter += 2
+}
+
+func clrm(p1: Int) {
+  memory[p1] = 0
+  programCounter += 2
+}
+
+func clrb(p1: Int, p2: Int) {
+  let start = registers[p1]
+  let end = start + registers[p2]
+  for i in start...end {
+    memory[i] = 0
+  }
+  programCounter += 3
+}
+
+func movir(p1: Int, p2: Int) {
+  registers[p2] = p1
+  programCounter += 3
+}
+
+func movrr(p1: Int, p2: Int) {
+  registers[p2] = registers[p1]
+  programCounter += 3
+}
+
+func movrm(p1: Int, p2: Int) {
+  memory[p2] = registers[p1]
+  programCounter += 3
+}
+
+func movmr(p1: Int, p2: Int) {
+  registers[p2] = memory[p1]
+  programCounter += 3
+}
+
+func movxr(p1: Int, p2: Int) {
+  registers[p2] = memory[registers[p1]]
+  programCounter += 3
+}
+
+func movar(p1: Int, p2: Int) {
+  registers[p2] = p1
+  programCounter += 3
+}
+
+func movb(p1: Int, p2: Int, p3: Int) {
+  let count = registers[p3]
+  for i in 0..<count {
+    memory[registers[p2] + i] = memory[registers[p1] + i]
+  }
+  programCounter += 4
+}
+
+func addir(p1: Int, p2: Int) {
+  registers[p2] += p1
+  programCounter += 3
+}
+
+func addrr(p1: Int, p2: Int) {
+  registers[p2] += registers[p1]
+  programCounter += 3
+}
+
+func addmr(p1: Int, p2: Int) {
+  registers[p2] += memory[p1]
+  programCounter += 3
+}
+
+func addxr(p1: Int, p2: Int) {
+  registers[p2] += memory[registers[p1]]
+  programCounter += 3
+}
+
+func subir(p1: Int, p2: Int) {
+  registers[p2] -= p1
+  programCounter += 3
+}
+
+func subrr(p1: Int, p2: Int) {
+  registers[p2] -= registers[p1]
+  programCounter += 3
+}
+
+func submr(p1: Int, p2: Int) {
+  registers[p2] -= memory[p1]
+  programCounter += 3
+}
+
+func subxr(p1: Int, p2: Int) {
+  registers[p2] -= memory[registers[p1]]
+  programCounter += 3
+}
+
+func mulir(p1: Int, p2: Int) {
+  registers[p2] *= p1
+  programCounter += 3
+}
+
+func mulrr(p1: Int, p2: Int) {
+  registers[p2] *= registers[p1]
+  programCounter += 3
+}
+
+func mulmr(p1: Int, p2: Int) {
+  registers[p2] *= memory[p1]
+  programCounter += 3
+}
+
+func mulxr(p1: Int, p2: Int) {
+  registers[p2] *= memory[registers[p1]]
+  programCounter += 3
+}
+
+func divir(p1: Int, p2: Int) {
+  registers[p2] /= p1
+  programCounter += 3
+}
+
+func divrr(p1: Int, p2: Int) {
+  registers[p2] /= registers[p1]
+  programCounter += 3
+}
+
+func divmr(p1: Int, p2: Int) {
+  registers[p2] /= memory[p1]
+  programCounter += 3
+}
+
+func divxr(p1: Int, p2: Int) {
+  registers[p2] /= memory[registers[p1]]
+  programCounter += 3
+}
+
+func jmp(p1: Int) {
+  programCounter = p1
+}
+
+func sojz(p1: Int, p2: Int) {
+  registers[p1] -= 1
+  if registers[p1] == 0 {
+    programCounter = p2
+  } else {
+    programCounter += 3
+  }
+}
+
+func sojnz(p1: Int, p2: Int) {
+  registers[p1] -= 1
+  if registers[p1] != 0 {
+    programCounter = p2
+  } else {
+    programCounter += 3
+  }
+}
+
+func aojz(p1: Int, p2: Int) {
+  registers[p1] += 1
+  if registers[p1] == 0 {
+    programCounter = p2
+  } else {
+    programCounter += 3
+  }
+}
+
+func aojnz(p1: Int, p2: Int) {
+  registers[p1] += 1
+  if registers[p1] != 0 {
+    programCounter = p2
+  } else {
+    programCounter += 3
+  }
+}
+
+func cmpir(p1: Int, p2: Int) {
+  compareRegister = p1 - registers[p2]
+  programCounter += 3
+}
+
+func cmprr(p1: Int, p2: Int) {
+  compareRegister = registers[p1] - registers[p2]
+  programCounter += 3
+}
+
+func cmpmr(p1: Int, p2: Int) {
+  compareRegister = memory[p1] - registers[p2]
+  programCounter += 3
+}
+
+func jmpn(p1: Int) {
+  if compareRegister < 0 {
+    programCounter = p1
+  } else {
+    programCounter += 2
+  }
+}
+
+func jmpz(p1: Int) {
+  if compareRegister == 0 {
+    programCounter = p1
+  } else {
+    programCounter += 2
+  }
+}
+
+func jmpp(p1: Int) {
+  if compareRegister > 0 {
+    programCounter = p1
+  } else {
+    programCounter += 2
+  }
+}
+
+func jsr(p1: Int) {
+  for r in 5...9 {
+    stack.push(registers[r])
+    if stack.isFull() {
+      stackRegister = 1
+    } else {
+      stackRegister = 0
+    }
+  }
+  stack.push(programCounter + 2)
+  programCounter = p1
+}
+
+func ret() {
+  programCounter = stack.pop()
+  for r in 9.stride(through: 5, by: -1) {
+    registers[r] = stack.pop()
+    if stack.isEmpty() {
+      stackRegister = 2
+    } else {
+      stackRegister = 0
+    }
+  }
+}
+
+func push(p1: Int) {
+  stack.push(registers[p1])
+  if stack.isFull() {
+    stackRegister = 1
+  } else {
+    stackRegister = 0
+  }
+  programCounter += 2
+}
+
+func pop(p1: Int) {
+  registers[p1] = stack.pop()
+  if stack.isEmpty() {
+    stackRegister = 2
+  } else {
+    stackRegister = 0
+  }
+  programCounter += 2
+}
+
+func stackc(p1: Int) {
+  registers[p1] = stackRegister
+  programCounter += 2
+}
+
+func outci(p1: Int) {
+  print(Character(UnicodeScalar(p1)), terminator: "")
+  programCounter += 2
+}
+
+func outcr(p1: Int) {
+  print(Character(UnicodeScalar(registers[p1])), terminator: "")
+  programCounter += 2
+}
+
+func outcx(p1: Int) {
+  print(Character(UnicodeScalar(memory[registers[p1]])), terminator: "")
+  programCounter += 2
+}
+
+func outcb(p1: Int, p2: Int) {
+  let count = registers[p2]
+  for i in 0..<count {
+    print(Character(UnicodeScalar(memory[registers[p1] + i])), terminator: "")
+  }
+  programCounter += 3
+}
+
+func readFromConsole() -> String {
+  let BUFSIZE = 1024
+  var buf = [CChar](count: BUFSIZE, repeatedValue: CChar(0))
+  fgets(&buf, Int32(BUFSIZE), stdin)
+  var line: String = String.fromCString(buf)!
+  line.removeAtIndex(line.startIndex.advancedBy(line.count - 1))
+  return line
+}
+
+func readi(p1: Int, p2: Int) {
+  let i = readFromConsole()
+  registers[p1] = Int(i)!
+  programCounter += 2
+}
+
+func printi(p1: Int) {
+  print("\(registers[p1]) ", terminator:"")
+  programCounter += 2
+}
+
+func readc(p1: Int) {
+  let char = readFromConsole()
+  registers[p1] = Int(char.unicodeScalarCodePoint())
+  programCounter += 2
+}
+
+func readln(p1: Int, p2: Int) {
+  let line = readFromConsole()
+  let chars = line.characters.map{String($0)}
+  let count = registers[p2]
+  for c in 0..<count {
+    memory[p1 + c] = Int(chars[c].unicodeScalarCodePoint())
+  }
+  programCounter += 3
+}
+
+func brk() {
+  programCounter += 1
+}
+
+func movrx(p1: Int, p2: Int) {
+  memory[registers[p2]] = registers[p1]
+  programCounter += 3
+}
+
+func movxx(p1: Int, p2: Int) {
+  memory[registers[p2]] = memory[registers[p1]]
+  programCounter += 3
+}
+
+func outs(p1: Int) {
+  var string = ""
+  for i in 1...memory[p1] {
+    string += String(UnicodeScalar(memory[p1 + i]))
+  }
+  print(string, terminator:"")
+  programCounter += 2
+}
+
+func nop() {
+  programCounter += 1
+}
+
+func jmpne(p1: Int) {
+  if compareRegister != 0 {
+    programCounter = p1
+  } else {
+    programCounter += 2
+  }
+}
+
+
+func runVirtualMachine() {
+  readAssembledCommands("turing")
+  var code = memory[programCounter]
+  while code != 0 {
+    let param1 = memory[programCounter + 1]
+    let param2 = memory[programCounter + 2]
+    let param3 = memory[programCounter + 3]
+    switch Instruction(rawValue: code)! {
+      case .clrr:
+        clrr(param1)
+      case .clrx:
+        clrx(param1)
+      case .clrm:
+        clrm(param1)
+      case .clrb:
+        clrb(param1, p2: param2)
+      case .movir:
+        movir(param1, p2: param2)
+      case .movrr:
+        movrr(param1, p2: param2)
+      case .movrm:
+        movrm(param1, p2: param2)
+      case .movmr:
+        movmr(param1, p2: param2)
+      case .movxr:
+        movxr(param1, p2: param2)
+      case .movar:
+        movar(param1, p2: param2)
+      case .movb:
+        movb(param1, p2: param2, p3: param3)
+      case .addir:
+        addir(param1, p2: param2)
+      case .addrr:
+        addrr(param1, p2: param2)
+      case .addmr:
+        addmr(param1, p2: param2)
+      case .addxr:
+        addxr(param1, p2: param2)
+      case .subir:
+        subir(param1, p2: param2)
+      case .subrr:
+        subrr(param1, p2: param2)
+      case .submr:
+        submr(param1, p2: param2)
+      case .subxr:
+        subxr(param1, p2: param2)
+      case .mulir:
+        mulir(param1, p2: param2)
+      case .mulrr:
+        mulrr(param1, p2: param2)
+      case .mulmr:
+        mulmr(param1, p2: param2)
+      case .mulxr:
+        mulxr(param1, p2: param2)
+      case .divir:
+        divir(param1, p2: param2)
+      case .divrr:
+        divrr(param1, p2: param2)
+      case .divmr:
+        divmr(param1, p2: param2)
+      case .divxr:
+        divxr(param1, p2: param2)
+      case .jmp:
+        jmp(param1)
+      case .sojz:
+        sojz(param1, p2: param2)
+      case .sojnz:
+        sojnz(param1, p2: param2)
+      case .aojz:
+        aojz(param1, p2: param2)
+      case .aojnz:
+        aojnz(param1, p2: param2)
+      case .cmpir:
+        cmpir(param1, p2: param2)
+      case .cmprr:
+        cmprr(param1, p2: param2)
+      case .cmpmr:
+        cmpmr(param1, p2: param2)
+      case .jmpn:
+        jmpn(param1)
+      case .jmpz:
+        jmpz(param1)
+      case .jmpp:
+        jmpp(param1)
+      case .jsr:
+        jsr(param1)
+      case .ret:
+        ret()
+      case .push:
+        push(param1)
+      case .pop:
+        pop(param1)
+      case .stackc:
+        stackc(param1)
+      case .outci:
+        outci(param1)
+      case .outcr:
+        outcr(param1)
+      case .outcx:
+        outcx(param1)
+      case .outcb:
+        outcb(param1, p2: param2)
+      case .readi:
+        readi(param1, p2: param2)
+      case .printi:
+        printi(param1)
+      case .readc:
+        readc(param1)
+      case .readln:
+        readln(param1, p2: param2)
+      case .brk:
+        brk()
+      case .movrx:
+        movrx(param1, p2: param2)
+      case .movxx:
+        movxx(param1, p2: param2)
+      case .outs:
+        outs(param1)
+      case .nop:
+        nop()
+      case .jmpne:
+        jmpne(param1)
+      default:
+        print("Error: not a valid instruction")
+    }
+    code = memory[programCounter]
+  }
+}
+
+runVirtualMachine()
