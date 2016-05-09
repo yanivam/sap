@@ -20,18 +20,23 @@ BreakLine: .String "_______________________"
 StateMess: .String "Initial State: "
 HeadMess: .String "Initial Head Position: "
 TapeMess: .String "Initial Tape: "
+CS: .String "CS: "
+I: .String " I: "
+NS: .String " NS: "
+O: .String " O: "
+D: .String " D: "
 OutBoundsMess: .String "Out of bounds. Program Terminated."
 EndMess: .String "Final Tape: "
 StepsMess: .String "Number of steps taken: "
 
-;purposes of each register (mostly)
-;0: holds newLine ASCII
-;1: holds tuple number
-;3: holds address of first tuple
-;4: holds number of steps
-;all others placeholders for computations
+;purposes of each register:
+	;0: holds newLine ASCII
+	;1: holds tuple number
+	;3: holds address of first tuple
+	;4: holds number of steps
+	;all others placeholders for various computations
 
-Setup: movmr State r6   ;for beginning message printout
+Setup: movmr State r6   ;setup variables for beginning message printout
 	movmr Head r7
 	movmr NewLine r0
 	movir #0 r1
@@ -44,45 +49,45 @@ Setup: movmr State r6   ;for beginning message printout
 	outcr r0
 	jmp PrintTuples
 	
-PrintTuple: movrr r1 r9
+PrintTuple: movrr r1 r9   ;prints one tuple
 	mulir #5 r9
 	addrr r9 r3   ;go to spot of tuple to be printed
 	movxr r3 r9
 	printi r9   ;current state
-	outci #32   ;ASCII for space
+	outci #9   ;ASCII for horizontal tab
 	addir #1 r3
 	movxr r3 r9
 	outcr r9   ;input character
-	outci #32
+	outci #9
 	addir #1 r3
 	movxr r3 r9
 	printi r9   ;new state
-	outci #32
+	outci #9
 	addir #1 r3
 	movxr r3 r9
 	outcr r9   ;output character
-	outci #32
+	outci #9
 	addir #1 r3
 	movxr r3 r9
 	sojz r9 PrintR   ;jump to print r if direction is 1, continue to print l
-	outci #108
+	outci #108   ;ASCII for l
 	outcr r0
 	movar Tuples r3   ;reset tuple address for next time subroutine is called
 	ret
 	
-PrintR: outci #114
+PrintR: outci #114   ;ASCII for r
 	outcr r0
 	movar Tuples r3
 	ret
 	
-ToPrint: jsr PrintTuple
+ToPrint: jsr PrintTuple   ;extra step before loop to start incrementing tuple number only after first compare
 	addir #1 r1
 
-PrintTuples: cmpmr NumTuples r1
-	jmpne ToPrint   ;print out next tuple if this is not last tuple
+PrintTuples: cmpmr NumTuples r1   ;loops to print out all tuples
+	jmpne ToPrint
 	outcr r0
 
-BeginMess: outs BreakLine
+BeginMess: outs BreakLine   ;beginning message
 	outcr r0
 	outs StateMess
 	printi r6
@@ -95,13 +100,13 @@ BeginMess: outs BreakLine
 	outcr r0
 	outcr r0
 
-Run: jsr GetInput
+Run: jsr GetInput   ;loop to execute Turing program
 	jsr FindTuple
 	jsr TraceLine
 	jsr UpdateSystem
 	jmp Run
 
-GetInput: movar Tape r8
+GetInput: movar Tape r8   ;saves new input character to be used to find tuple match
 	addir #1 r8   ;first character of tape
 	movmr Head r7
 	addrr r7 r8   ;get to current place in tape
@@ -110,17 +115,17 @@ GetInput: movar Tape r8
 	movrm r9 InputChar
 	ret
 
-FindTuple: movir #0 r1   ;resets loop
+FindTuple: movir #0 r1   ;resets loop variables before jumping to loop
 	movar Tuples r3
 	jsr LoopSearch
 	movar Tuples r3
 	ret
 	
-LoopSearch: cmpmr NumTuples r1
+LoopSearch: cmpmr NumTuples r1   ;loop to search for tuple
 	jmpne CheckTuple
-	jmp End
+	jmp End   ;if no tuple found, end execution
 
-CheckTuple: movrr r1 r9
+CheckTuple: movrr r1 r9   ;compares current state to tuple
 	mulir #5 r9
 	addrr r9 r3   ;go to memory location of tuple
 	movxr r3 r9
@@ -130,7 +135,7 @@ CheckTuple: movrr r1 r9
 	movar Tuples r3
 	jmp LoopSearch
 	
-CheckInput: addir #1 r3
+CheckInput: addir #1 r3   ;compares input character to tuple
 	movxr r3 r9
 	cmpmr InputChar r9
 	jmpz SaveTuple   ;if IC matched, save tuple, otherwise move to next tuple
@@ -138,16 +143,15 @@ CheckInput: addir #1 r3
 	movar Tuples r3
 	jmp LoopSearch
 	
-SaveTuple: movrm r1 TupMatch
-	addir #1 r4
+SaveTuple: movrm r1 TupMatch   ;saves correct tuple
+	addir #1 r4   ;increments number of steps in execution
 	ret
 
-TraceLine: jsr PrintTape
-	movmr TupMatch r1   ;PrintTuple uses r1 to print specific tuple
-	jsr PrintTuple
+TraceLine: jsr PrintTape   ;prints trace line
+	jsr PrintTupMatch
 	ret
 	
-PrintTape: movar Tape r5
+PrintTape: movar Tape r5   ;prints tape with brackets around current head
 	movmr HeadPos r6
 	movar Tape r7
 	addxr r5 r7   ;end of tape
@@ -171,13 +175,46 @@ AfterHead: subrr r6 r7
 	addir #1 r6
 	outcb r6 r7
 	ret
+	
+PrintTupMatch: movmr TupMatch r9   ;prints tuple associated with current state and input character
+	mulir #5 r9
+	addrr r9 r3   ;go to spot of tuple to be printed
+	movxr r3 r9
+	outs CS
+	printi r9   ;current state
+	addir #1 r3
+	movxr r3 r9
+	outs I
+	outcr r9   ;input character
+	addir #1 r3
+	movxr r3 r9
+	outs NS
+	printi r9   ;new state
+	addir #1 r3
+	movxr r3 r9
+	outs O
+	outcr r9   ;output character
+	addir #1 r3
+	movxr r3 r9
+	sojz r9 PrintTMR   ;jump to print r if direction is 1, continue to print l
+	outs D
+	outci #108
+	outcr r0
+	movar Tuples r3   ;reset tuple address for next time subroutine is called
+	ret
+	
+PrintTMR: outs D   ;prints tuple match direction r
+	outci #114
+	outcr r0
+	movar Tuples r3
+	ret
 
-UpdateSystem: jsr EnterTuple
+UpdateSystem: jsr EnterTuple   ;changes tape and variables according to new tuple
 	jsr ChangeTape
 	jsr CheckBounds
 	ret
 
-EnterTuple: movmr TupMatch r2
+EnterTuple: movmr TupMatch r2   ;saves new variables of tuple
 	mulir #5 r2
 	addrr r2 r3
 	addir #2 r3   ;at new state of saved tuple
@@ -191,7 +228,7 @@ EnterTuple: movmr TupMatch r2
 	movrm r2 Direction
 	ret
 	
-ChangeTape: movmr HeadPos r6
+ChangeTape: movmr HeadPos r6   ;manipulates tape with new saved variables
 	movmr Head r7
 	movmr Direction r8
 	movmr OutputChar r9
@@ -200,7 +237,7 @@ ChangeTape: movmr HeadPos r6
 	movrm r7 Head
 	ret
 	
-CheckBounds: movmr Tape r5
+CheckBounds: movmr Tape r5   ;makes sure head position did not stray out of bounds of tape
 	movmr Head r7
 	cmpir #0 r7
 	jmpp PrintError   ;if head is less than location 0, compare > 0, out of bounds
@@ -208,13 +245,14 @@ CheckBounds: movmr Tape r5
 	jmpn PrintError   ;if head is greater than tape length, compare < 0, out of bounds
 	ret
 	
-PrintError: outs OutBoundsMess
+PrintError: outs OutBoundsMess   ;prints error if head is out of bounds
 	
-End: outcr r0
+End: outcr r0   ;prints end of run messages
 	outs EndMess
 	outs Tape
 	outcr r0
 	outs StepsMess
 	printi r4
+	outcr r0
 	halt
 	.end
