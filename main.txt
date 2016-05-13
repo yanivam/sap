@@ -1,0 +1,4 @@
+import Foundation
+
+var vm = VirtualMachine()
+vm.runVirtualMachine("turing")
