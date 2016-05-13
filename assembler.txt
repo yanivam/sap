@@ -1,3 +1,5 @@
+//INCOMPLETE, WILL NOT COMPILE
+
 import Foundation
 
 enum TokenType {
@@ -13,10 +15,13 @@ enum TokenType {
 }
 
 struct Token {
-    let type: TokenType
-    let intValue: Int?
-    let stringValue: String?
-    let tupleValue: Tuple?
+    var type: TokenType
+    var intValue: Int?
+    var stringValue: String?
+    var tupleValue: Tuple?
+    init(type: TokenType) {
+        self.type = type
+    }
 }
 
 struct Tuple {
@@ -36,7 +41,7 @@ enum Instruction: Int {
     movrx, movxx, outs, nop, jmpne
 }
 
-let directives: Set<String> = ["string", "integer", "tuple"]
+let directives: Set<String> = [".string", ".integer", ".tuple", ".allocate"]
 
 var labels = [String: Int]()
 
@@ -62,3 +67,114 @@ func readFromConsole() -> String {
     line = line.substringToIndex(line.endIndex.predecessor())
     return line
 }
+
+func Tokenizer(line: String) -> [Token] {
+    var tokens = [Token]()
+    let chunks = getChunks(line)
+    for chunk in chunks {
+        var token: Token
+        let chars = Array(chunk.characters)
+        switch chars[0] {
+            case ".":
+            token = checkDirective(chunk)
+            tokens.append(token)
+            case "\"":
+            token = Token(type: .ImmediateString)
+            token.stringValue! = chunk
+            tokens.append(token)
+            case "#":
+            token = checkInteger(chars)
+            tokens.append(token)
+            
+            
+        }
+    }
+    return tokens
+}
+
+func getChunks(line: String) -> [String] {
+    let chars = Array(line.lowercaseString.characters)
+    var chunks = [String]()
+    var chunk = ""
+    var inString = false
+    var inTuple = false
+    for c in chars {
+        if c == "\"" {
+            if inString {
+                inString = false
+                chunk.append(c)
+                chunks.append(chunk)
+            } else {
+                inString = true
+                chunk.append(c)
+            }
+        } else if c == "\\" {
+            if inTuple {
+                inTuple = false
+                chunk.append(c)
+                chunks.append(chunk)
+            } else {
+                inTuple = true
+                chunk.append(c)
+            }
+        } else {
+            if inString {
+                chunk.append(c)
+            } else if inTuple {
+                if c != " " {
+                    chunk.append(c)
+                }
+            } else if c == " " {
+                chunks.append(chunk)
+                chunk = ""
+            } else {
+                chunk.append(c)
+            }
+        }
+    }
+    return chunks
+}
+
+func checkDirective(chunk: String) -> Token {
+    var token: Token
+    var isDirective = false
+    for d in directives {
+        if chunk == d {
+            isDirective = true
+        }
+    }
+    if isDirective {
+        token = Token(type: .Directive)
+        token.stringValue! = chunk
+    } else {
+        token = Token(type: .BadToken)
+    }
+    return token
+}
+
+func checkInteger(chunk: [Character]) -> Token {
+    var token: Token
+    var isInteger = true
+    var intString = ""
+    for c in chunk {
+        let s = String(c)
+        if Int(s) == nil {
+            isInteger = false
+        }
+        intString.append(c)
+    }
+    if isInteger {
+        token = Token(type: .ImmediateInteger)
+        token.intValue! = Int(intString)!
+    } else {
+        token = Token(type: .BadToken)
+    }
+    return token
+}
+
+
+
+
+
+
+
