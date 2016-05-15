@@ -1,4 +1,10 @@
-//INCOMPLETE, WILL NOT COMPILE
+//
+//  Assembler.swift
+//  sap
+//
+//  Created by Daniel Korsunsky on 5/12/16.
+//  Copyright © 2016 Daniel Korsunsky. All rights reserved.
+//
 
 import Foundation
 
@@ -25,11 +31,18 @@ struct Token {
 }
 
 struct Tuple {
-    let currentState: Int
-    let inputCharacter: Int
-    let newState: Int
-    let outputCharacter: Int
-    let direction: Int
+    var currentState: Int
+    var inputCharacter: Int
+    var newState: Int
+    var outputCharacter: Int
+    var direction: Int
+    init(parameters: [Int]) {
+        currentState = parameters[0]
+        inputCharacter = parameters[1]
+        newState = parameters[2]
+        outputCharacter = parameters[3]
+        direction = parameters[4]
+    }
 }
 
 enum Instruction: Int {
@@ -76,17 +89,23 @@ func Tokenizer(line: String) -> [Token] {
         let chars = Array(chunk.characters)
         switch chars[0] {
             case ".":
-            token = checkDirective(chunk)
-            tokens.append(token)
+                token = checkDirective(chunk)
+                tokens.append(token)
             case "\"":
-            token = Token(type: .ImmediateString)
-            token.stringValue! = chunk
-            tokens.append(token)
+                token = Token(type: .ImmediateString)
+                token.stringValue! = chunk
+                tokens.append(token)
             case "#":
-            token = checkInteger(chars)
-            tokens.append(token)
-            
-            
+                token = checkInteger(chars)
+                tokens.append(token)
+            case "\\":
+                token = checkTuple(chars)
+                tokens.append(token)
+            case "r":
+                token = checkRegister(chars)
+                tokens.append(token)
+            default:
+                break
         }
     }
     return tokens
@@ -154,14 +173,16 @@ func checkDirective(chunk: String) -> Token {
 
 func checkInteger(chunk: [Character]) -> Token {
     var token: Token
+    var numbers = chunk
+    numbers.removeFirst()
     var isInteger = true
     var intString = ""
-    for c in chunk {
-        let s = String(c)
+    for n in numbers {
+        let s = String(n)
         if Int(s) == nil {
             isInteger = false
         }
-        intString.append(c)
+        intString.append(n)
     }
     if isInteger {
         token = Token(type: .ImmediateInteger)
@@ -172,9 +193,55 @@ func checkInteger(chunk: [Character]) -> Token {
     return token
 }
 
+func checkTuple(chunk: [Character]) -> Token {   //make sure return logic makes sense
+    var token: Token
+    var tuple: Tuple
+    if chunk.count == 7 {
+        for i in 1...4 {
+            let s = String(chunk[i])
+            if Int(s) == nil {
+                token = Token(type: .BadToken)
+                return token
+            }
+        }
+        if chunk[5] == "r" || chunk[5] == "l" {
+            tuple = makeTuple(chunk)
+            token = Token(type: .ImmediateTuple)
+            token.tupleValue! = tuple
+            return token
+        }
+    }
+    token = Token(type: .BadToken)
+    return token
+}
 
+func makeTuple(specs: [Character]) -> Tuple {
+    var tuple: Tuple
+    var params = [Int]()
+    for p in 1...4 {
+        params[p - 1] = Int(String(specs[p]))!
+    }
+    if specs[5] == "r" {
+        params[4] = 1
+    } else {
+        params[4] = -1
+    }
+    tuple = Tuple(parameters: params)
+    return tuple
+}
 
-
-
-
-
+func checkRegister(chunk: [Character]) -> Token {
+    var token: Token
+    if chunk.count == 2 {
+        let i = String(chunk[1])
+        if Int(i) != nil {
+            token = Token(type: .Register)
+            token.intValue! = Int(i)!
+        } else {
+            token = Token(type: .BadToken)
+        }
+    } else {
+        token = Token(type: .BadToken)
+    }
+    return token
+}
