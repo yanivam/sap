@@ -58,7 +58,7 @@ let directives: Set<String> = [".string", ".integer", ".tuple", ".allocate"]
 
 var labels = [String: Int]()
 
-/*func splitStringByWhiteSpace(expression: String)->[String] {
+func splitStringByWhiteSpace(expression: String)->[String] {
  return expression.componentsSeparatedByString(" ")
  }
  
@@ -78,7 +78,7 @@ var labels = [String: Int]()
  var line: String = String.fromCString(buf)!
  line = line.substringToIndex(line.endIndex.predecessor())
  return line
- }*/
+ }
 
 func ascii(char: Character) -> Int {
     return Int(String(char).utf8.first!)
@@ -87,13 +87,15 @@ func ascii(char: Character) -> Int {
 func Tokenizer(line: String) -> [Token] {
     var tokens = [Token]()
     let chunks = getChunks(line)
+    print(chunks)
     for chunk in chunks {
         var token: Token
-        var chars = Array(chunk.characters)
+        let chars = Array(chunk.characters)
+        let charsLC = Array(chunk.lowercaseString.characters)
         var tokenFound = false
         switch chars[0] {
         case ".":                                   //directive
-            tokens.append(checkDirective(chunk))
+            tokens.append(checkDirective(chunk.lowercaseString))
             tokenFound = true
         case "\"":                                  //string
             token = Token(type: .ImmediateString)
@@ -111,26 +113,29 @@ func Tokenizer(line: String) -> [Token] {
             tokenFound = true
         default: ()
         }
-        if tokenFound {
-            break
+        if !tokenFound {
+            let code = checkInstruction(chunk.lowercaseString)   //instruction
+            if code != nil {
+                tokens.append(code!)
+                tokenFound = true
+            }
         }
-        let code = checkInstruction(chunk)              //instruction
-        if code != nil {
-            tokens.append(code!)
-            break
+        if !tokenFound {
+            let labelDef = checkLabelDefinition(charsLC)         //label definition
+            if labelDef != nil {
+                tokens.append(labelDef!)
+                tokenFound = true
+            }
         }
-        let labelDef = checkLabelDefinition(chars)      //label definition
-        if labelDef != nil {
-            tokens.append(labelDef!)
-            break
+        if !tokenFound {
+            tokens.append(checkLabel(charsLC))                   //label
         }
-        tokens.append(checkLabel(chars))                //label
     }
     return tokens
 }
 
 func getChunks(line: String) -> [String] {
-    var chars = Array(line.lowercaseString.characters)
+    var chars = Array(line.characters)
     chars.append(" ")
     var chunks = [String]()
     var chunk = ""
@@ -141,7 +146,6 @@ func getChunks(line: String) -> [String] {
             if inString {
                 inString = false
                 chunk.append(c)
-                chunks.append(chunk)
             } else {
                 inString = true
                 chunk.append(c)
@@ -150,7 +154,6 @@ func getChunks(line: String) -> [String] {
             if inTuple {
                 inTuple = false
                 chunk.append(c)
-                chunks.append(chunk)
             } else {
                 inTuple = true
                 chunk.append(c)
@@ -167,6 +170,8 @@ func getChunks(line: String) -> [String] {
                     chunks.append(chunk)
                     chunk = ""
                 }
+            } else if c == ";" {
+                break
             } else {
                 chunk.append(c)
             }
@@ -218,18 +223,15 @@ func checkTuple(chunk: [Character]) -> Token {   //make sure return logic makes 
     var token: Token
     var tuple: Tuple
     if chunk.count == 7 {
-        for i in 1...4 {
-            let s = String(chunk[i])
-            if Int(s) == nil {
-                token = Token(type: .BadToken)
-                return token
+        if Int(String(chunk[1])) != nil {
+            if Int(String(chunk[3])) != nil {
+                if chunk[5] == "r" || chunk[5] == "l" {
+                    tuple = makeTuple(chunk)
+                    token = Token(type: .ImmediateTuple)
+                    token.tupleValue = tuple
+                    return token
+                }
             }
-        }
-        if chunk[5] == "r" || chunk[5] == "l" {
-            tuple = makeTuple(chunk)
-            token = Token(type: .ImmediateTuple)
-            token.tupleValue = tuple
-            return token
         }
     }
     token = Token(type: .BadToken)
@@ -238,7 +240,7 @@ func checkTuple(chunk: [Character]) -> Token {   //make sure return logic makes 
 
 func makeTuple(specs: [Character]) -> Tuple {
     var tuple: Tuple
-    var params = [Int]()
+    var params = [Int](count: 5, repeatedValue: 0)
     params[0] = Int(String(specs[1]))!
     params[1] = ascii(specs[2])
     params[2] = Int(String(specs[3]))!
