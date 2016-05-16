@@ -59,29 +59,29 @@ let directives: Set<String> = [".string", ".integer", ".tuple", ".allocate"]
 var labels = [String: Int]()
 
 /*func splitStringByWhiteSpace(expression: String)->[String] {
-    return expression.componentsSeparatedByString(" ")
-}
-
-func splitStringIntoLines(expression: String)->[String] {
-    return expression.componentsSeparatedByString("/n")
-}
-
-func readFromTextFile(fileName: String)->String {
-    let result = try? String(contentsOfFile: fileName, encoding: NSUTF8StringEncoding)
-    return result!
-}
-
-func readFromConsole() -> String {
-    let BUFSIZE = 1024
-    var buf = [CChar](count: BUFSIZE, repeatedValue: CChar(0))
-    fgets(&buf, Int32(BUFSIZE), stdin)
-    var line: String = String.fromCString(buf)!
-    line = line.substringToIndex(line.endIndex.predecessor())
-    return line
-}*/
+ return expression.componentsSeparatedByString(" ")
+ }
+ 
+ func splitStringIntoLines(expression: String)->[String] {
+ return expression.componentsSeparatedByString("/n")
+ }
+ 
+ func readFromTextFile(fileName: String)->String {
+ let result = try? String(contentsOfFile: fileName, encoding: NSUTF8StringEncoding)
+ return result!
+ }
+ 
+ func readFromConsole() -> String {
+ let BUFSIZE = 1024
+ var buf = [CChar](count: BUFSIZE, repeatedValue: CChar(0))
+ fgets(&buf, Int32(BUFSIZE), stdin)
+ var line: String = String.fromCString(buf)!
+ line = line.substringToIndex(line.endIndex.predecessor())
+ return line
+ }*/
 
 func ascii(char: Character) -> Int {
-  return Int(char.utf8.first!)
+    return Int(String(char).utf8.first!)
 }
 
 func Tokenizer(line: String) -> [Token] {
@@ -92,25 +92,24 @@ func Tokenizer(line: String) -> [Token] {
         var chars = Array(chunk.characters)
         var tokenFound = false
         switch chars[0] {
-            case ".":                                   //directive
-                tokens.append(checkDirective(chunk))
-                tokenFound = true
-            case "\"":                                  //string
-                token = Token(type: .ImmediateString)
-                token.stringValue! = chunk
-                tokens.append(token)
-                tokenFound = true
-            case "#":                                   //integer
-                tokens.append(checkInteger(chars))
-                tokenFound = true
-            case "\\":                                  //tuple
-                tokens.append(checkTuple(chars))
-                tokenFound = true
-            case "r":                                   //register
-                tokens.append(checkRegister(chars))
-                tokenFound = true
-            default:
-                break
+        case ".":                                   //directive
+            tokens.append(checkDirective(chunk))
+            tokenFound = true
+        case "\"":                                  //string
+            token = Token(type: .ImmediateString)
+            token.stringValue = chunk
+            tokens.append(token)
+            tokenFound = true
+        case "#":                                   //integer
+            tokens.append(checkInteger(chars))
+            tokenFound = true
+        case "\\":                                  //tuple
+            tokens.append(checkTuple(chars))
+            tokenFound = true
+        case "r":                                   //register
+            tokens.append(checkRegister(chars))
+            tokenFound = true
+        default: ()
         }
         if tokenFound {
             break
@@ -131,7 +130,8 @@ func Tokenizer(line: String) -> [Token] {
 }
 
 func getChunks(line: String) -> [String] {
-    let chars = Array(line.lowercaseString.characters)
+    var chars = Array(line.lowercaseString.characters)
+    chars.append(" ")
     var chunks = [String]()
     var chunk = ""
     var inString = false
@@ -163,8 +163,10 @@ func getChunks(line: String) -> [String] {
                     chunk.append(c)
                 }
             } else if c == " " {
-                chunks.append(chunk)
-                chunk = ""
+                if chunk != "" {
+                    chunks.append(chunk)
+                    chunk = ""
+                }
             } else {
                 chunk.append(c)
             }
@@ -183,7 +185,7 @@ func checkDirective(chunk: String) -> Token {
     }
     if isDirective {
         token = Token(type: .Directive)
-        token.stringValue! = chunk
+        token.stringValue = chunk
     } else {
         token = Token(type: .BadToken)
     }
@@ -205,7 +207,7 @@ func checkInteger(chunk: [Character]) -> Token {
     }
     if isInteger {
         token = Token(type: .ImmediateInteger)
-        token.intValue! = Int(intString)!
+        token.intValue = Int(intString)!
     } else {
         token = Token(type: .BadToken)
     }
@@ -226,7 +228,7 @@ func checkTuple(chunk: [Character]) -> Token {   //make sure return logic makes 
         if chunk[5] == "r" || chunk[5] == "l" {
             tuple = makeTuple(chunk)
             token = Token(type: .ImmediateTuple)
-            token.tupleValue! = tuple
+            token.tupleValue = tuple
             return token
         }
     }
@@ -237,9 +239,10 @@ func checkTuple(chunk: [Character]) -> Token {   //make sure return logic makes 
 func makeTuple(specs: [Character]) -> Tuple {
     var tuple: Tuple
     var params = [Int]()
-    for p in 1...4 {
-        params[p - 1] = Int(String(specs[p]))!
-    }
+    params[0] = Int(String(specs[1]))!
+    params[1] = ascii(specs[2])
+    params[2] = Int(String(specs[3]))!
+    params[3] = ascii(specs[4])
     if specs[5] == "r" {
         params[4] = 1
     } else {
@@ -255,7 +258,7 @@ func checkRegister(chunk: [Character]) -> Token {
         let i = String(chunk[1])
         if Int(i) != nil {
             token = Token(type: .Register)
-            token.intValue! = Int(i)!
+            token.intValue = Int(i)!
         } else {
             token = Token(type: .BadToken)
         }
@@ -278,7 +281,7 @@ func checkInstruction(chunk: String) -> Token? {
     }
     if code > 0 {
         token = Token(type: .Instruction)
-        token.intValue! = code
+        token.intValue = code
         return token
     }
     return nil
@@ -295,18 +298,16 @@ func checkLabelDefinition(chunk: [Character]) -> Token? {
         }
         for c in 0..<chars.count {
             let code = ascii(chars[c])
-            if code > 122 || code < 97 {    //checks to see if character is a letter
-                token = Token(type: .BadToken)
-                return token
-            }
-            if code > 57 || code < 48 {     //if character is a number
-                token = Token(type: .BadToken)
-                return token
+            if code > 122 || code < 97 {
+                if code > 57 || code < 48 {
+                    token = Token(type: .BadToken)
+                    return token
+                }
             }
             string.append(chars[c])
         }
         token = Token(type: .LabelDefinition)
-        token.stringValue! = string
+        token.stringValue = string
         return token
     } else {
         return nil
@@ -324,22 +325,17 @@ func checkLabel(chunk: [Character]) -> Token {
     for c in 0..<chars.count {
         let code = ascii(chars[c])
         if code > 122 || code < 97 {
-            token = Token(type: .BadToken)
-            return token
-        }
-        if code > 57 || code < 48 {
-            token = Token(type: .BadToken)
-            return token
+            if code > 57 || code < 48 {
+                token = Token(type: .BadToken)
+                return token
+            }
         }
         string.append(chars[c])
     }
     token = Token(type: .Label)
-    token.stringValue! = string
+    token.stringValue = string
     return token
 }
-
-
-
 
 
 
