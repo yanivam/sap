@@ -58,7 +58,7 @@ let directives: Set<String> = [".string", ".integer", ".tuple", ".allocate"]
 
 var labels = [String: Int]()
 
-func splitStringByWhiteSpace(expression: String)->[String] {
+/*func splitStringByWhiteSpace(expression: String)->[String] {
     return expression.componentsSeparatedByString(" ")
 }
 
@@ -78,9 +78,11 @@ func readFromConsole() -> String {
     var line: String = String.fromCString(buf)!
     line = line.substringToIndex(line.endIndex.predecessor())
     return line
+}*/
+
+func ascii(char: Character) -> Int {
+  return Int(char.utf8.first!)
 }
-
-
 
 func Tokenizer(line: String) -> [Token] {
     var tokens = [Token]()
@@ -287,20 +289,21 @@ func checkLabelDefinition(chunk: [Character]) -> Token? {
     var chars = chunk
     var string = ""
     if chars.removeLast() == ":" {
-        if chars[0] > 122 || chars[0] < 97 {
+        if ascii(chars[0]) > 122 || ascii(chars[0]) < 97 {
             token = Token(type: .BadToken)
             return token
         }
         for c in 0..<chars.count {
-            if chars[c] > 122 || chars[c] < 97 {    //checks to see if character is a letter
+            let code = ascii(chars[c])
+            if code > 122 || code < 97 {    //checks to see if character is a letter
                 token = Token(type: .BadToken)
                 return token
             }
-            if chars[c] > 57 || chars[c] < 48 {     //if character is a number
+            if code > 57 || code < 48 {     //if character is a number
                 token = Token(type: .BadToken)
                 return token
             }
-            string.append(c)
+            string.append(chars[c])
         }
         token = Token(type: .LabelDefinition)
         token.stringValue! = string
@@ -314,25 +317,27 @@ func checkLabel(chunk: [Character]) -> Token {
     var token: Token
     var chars = chunk
     var string = ""
-    if chars[0] > 122 || chars[0] < 97 {
+    if ascii(chars[0]) > 122 || ascii(chars[0]) < 97 {
         token = Token(type: .BadToken)
         return token
     }
     for c in 0..<chars.count {
-        if chars[c] > 122 || chars[c] < 97 {
+        let code = ascii(chars[c])
+        if code > 122 || code < 97 {
             token = Token(type: .BadToken)
             return token
         }
-        if chars[c] > 57 || chars[c] < 48 {
+        if code > 57 || code < 48 {
             token = Token(type: .BadToken)
             return token
         }
-        string.append(c)
+        string.append(chars[c])
     }
     token = Token(type: .Label)
     token.stringValue! = string
     return token
 }
+
 
 
 
