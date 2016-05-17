@@ -2,347 +2,49 @@
 //  Assembler.swift
 //  sap
 //
-//  Created by Daniel Korsunsky on 5/12/16.
+//  Created by Daniel Korsunsky on 5/16/16.
 //  Copyright © 2016 Daniel Korsunsky. All rights reserved.
 //
 
 import Foundation
 
-enum TokenType {
-    case Register
-    case LabelDefinition
-    case Label
-    case ImmediateString
-    case ImmediateInteger
-    case ImmediateTuple
-    case Instruction
-    case Directive
-    case BadToken
-}
-
-struct Token {
-    var type: TokenType
-    var intValue: Int?
-    var stringValue: String?
-    var tupleValue: Tuple?
-    init(type: TokenType) {
-        self.type = type
+class Assembler {
+    
+    var lines = [String]()
+    var tokens = [[Token]]()
+    var labelDefs = [String: Int]()
+    let labels: Set<String> = []
+    var binary = [Int]()
+    var listing = ""
+    
+    func splitStringByWhiteSpace(expression: String)->[String] {
+        return expression.componentsSeparatedByString(" ")
     }
-}
-
-struct Tuple {
-    var currentState: Int
-    var inputCharacter: Int
-    var newState: Int
-    var outputCharacter: Int
-    var direction: Int
-    init(parameters: [Int]) {
-        currentState = parameters[0]
-        inputCharacter = parameters[1]
-        newState = parameters[2]
-        outputCharacter = parameters[3]
-        direction = parameters[4]
+    
+    func splitStringIntoLines(expression: String)->[String] {
+        return expression.componentsSeparatedByString("/n")
     }
-}
-
-enum Instruction: Int {
-    case halt, clrr, clrx, clrm, clrb, movir, movrr, movrm, movmr, movxr, movar,
-    movb, addir, addrr, addmr, addxr, subir, subrr, submr, subxr, mulir,
-    mulrr, mulmr, mulxr, divir, divrr, divmr, divxr, jmp, sojz, sojnz, aojz,
-    aojnz, cmpir, cmprr, cmpmr, jmpn, jmpz, jmpp, jsr, ret, push, pop,
-    stackc, outci, outcr, outcx, outcb, readi, printi, readc, readln, brk,
-    movrx, movxx, outs, nop, jmpne
-}
-
-let directives: Set<String> = [".string", ".integer", ".tuple", ".allocate"]
-
-var labels = [String: Int]()
-
-func splitStringByWhiteSpace(expression: String)->[String] {
- return expression.componentsSeparatedByString(" ")
- }
- 
- func splitStringIntoLines(expression: String)->[String] {
- return expression.componentsSeparatedByString("/n")
- }
- 
- func readFromTextFile(fileName: String)->String {
- let result = try? String(contentsOfFile: fileName, encoding: NSUTF8StringEncoding)
- return result!
- }
- 
- func readFromConsole() -> String {
- let BUFSIZE = 1024
- var buf = [CChar](count: BUFSIZE, repeatedValue: CChar(0))
- fgets(&buf, Int32(BUFSIZE), stdin)
- var line: String = String.fromCString(buf)!
- line = line.substringToIndex(line.endIndex.predecessor())
- return line
- }
-
-func ascii(char: Character) -> Int {
-    return Int(String(char).utf8.first!)
-}
-
-func Tokenizer(line: String) -> [Token] {
-    var tokens = [Token]()
-    let chunks = getChunks(line)
-    print(chunks)
-    for chunk in chunks {
-        var token: Token
-        let chars = Array(chunk.characters)
-        let charsLC = Array(chunk.lowercaseString.characters)
-        var tokenFound = false
-        switch chars[0] {
-        case ".":                                   //directive
-            tokens.append(checkDirective(chunk.lowercaseString))
-            tokenFound = true
-        case "\"":                                  //string
-            token = Token(type: .ImmediateString)
-            token.stringValue = chunk
-            tokens.append(token)
-            tokenFound = true
-        case "#":                                   //integer
-            tokens.append(checkInteger(chars))
-            tokenFound = true
-        case "\\":                                  //tuple
-            tokens.append(checkTuple(chars))
-            tokenFound = true
-        case "r":                                   //register
-            tokens.append(checkRegister(chars))
-            tokenFound = true
-        default: ()
-        }
-        if !tokenFound {
-            let code = checkInstruction(chunk.lowercaseString)   //instruction
-            if code != nil {
-                tokens.append(code!)
-                tokenFound = true
-            }
-        }
-        if !tokenFound {
-            let labelDef = checkLabelDefinition(charsLC)         //label definition
-            if labelDef != nil {
-                tokens.append(labelDef!)
-                tokenFound = true
-            }
-        }
-        if !tokenFound {
-            tokens.append(checkLabel(charsLC))                   //label
+    
+    func readFromTextFile(fileName: String) -> String {
+        let result = try? String(contentsOfFile: fileName, encoding: NSUTF8StringEncoding)
+        return result!
+    }
+    
+    func readFromConsole() -> String {
+        let BUFSIZE = 1024
+        var buf = [CChar](count: BUFSIZE, repeatedValue: CChar(0))
+        fgets(&buf, Int32(BUFSIZE), stdin)
+        var line: String = String.fromCString(buf)!
+        line = line.substringToIndex(line.endIndex.predecessor())
+        return line
+    }
+    
+    func tokenizeListing(file: String) {
+        lines = splitStringIntoLines(readFromTextFile(file))
+        let t = Tokenizer()
+        for line in lines {
+            tokens.append(t.getTokens(line))
         }
     }
-    return tokens
+    
 }
-
-func getChunks(line: String) -> [String] {
-    var chars = Array(line.characters)
-    chars.append(" ")
-    var chunks = [String]()
-    var chunk = ""
-    var inString = false
-    var inTuple = false
-    for c in chars {
-        if c == "\"" {
-            if inString {
-                inString = false
-                chunk.append(c)
-            } else {
-                inString = true
-                chunk.append(c)
-            }
-        } else if c == "\\" {
-            if inTuple {
-                inTuple = false
-                chunk.append(c)
-            } else {
-                inTuple = true
-                chunk.append(c)
-            }
-        } else {
-            if inString {
-                chunk.append(c)
-            } else if inTuple {
-                if c != " " {
-                    chunk.append(c)
-                }
-            } else if c == " " {
-                if chunk != "" {
-                    chunks.append(chunk)
-                    chunk = ""
-                }
-            } else if c == ";" {
-                break
-            } else {
-                chunk.append(c)
-            }
-        }
-    }
-    return chunks
-}
-
-func checkDirective(chunk: String) -> Token {
-    var token: Token
-    var isDirective = false
-    for d in directives {
-        if chunk == d {
-            isDirective = true
-        }
-    }
-    if isDirective {
-        token = Token(type: .Directive)
-        token.stringValue = chunk
-    } else {
-        token = Token(type: .BadToken)
-    }
-    return token
-}
-
-func checkInteger(chunk: [Character]) -> Token {
-    var token: Token
-    var numbers = chunk
-    numbers.removeFirst()
-    var isInteger = true
-    var intString = ""
-    for n in numbers {
-        let s = String(n)
-        if Int(s) == nil {
-            isInteger = false
-        }
-        intString.append(n)
-    }
-    if isInteger {
-        token = Token(type: .ImmediateInteger)
-        token.intValue = Int(intString)!
-    } else {
-        token = Token(type: .BadToken)
-    }
-    return token
-}
-
-func checkTuple(chunk: [Character]) -> Token {   //make sure return logic makes sense
-    var token: Token
-    var tuple: Tuple
-    if chunk.count == 7 {
-        if Int(String(chunk[1])) != nil {
-            if Int(String(chunk[3])) != nil {
-                if chunk[5] == "r" || chunk[5] == "l" {
-                    tuple = makeTuple(chunk)
-                    token = Token(type: .ImmediateTuple)
-                    token.tupleValue = tuple
-                    return token
-                }
-            }
-        }
-    }
-    token = Token(type: .BadToken)
-    return token
-}
-
-func makeTuple(specs: [Character]) -> Tuple {
-    var tuple: Tuple
-    var params = [Int](count: 5, repeatedValue: 0)
-    params[0] = Int(String(specs[1]))!
-    params[1] = ascii(specs[2])
-    params[2] = Int(String(specs[3]))!
-    params[3] = ascii(specs[4])
-    if specs[5] == "r" {
-        params[4] = 1
-    } else {
-        params[4] = -1
-    }
-    tuple = Tuple(parameters: params)
-    return tuple
-}
-
-func checkRegister(chunk: [Character]) -> Token {
-    var token: Token
-    if chunk.count == 2 {
-        let i = String(chunk[1])
-        if Int(i) != nil {
-            token = Token(type: .Register)
-            token.intValue = Int(i)!
-        } else {
-            token = Token(type: .BadToken)
-        }
-    } else {
-        token = Token(type: .BadToken)
-    }
-    return token
-}
-
-func checkInstruction(chunk: String) -> Token? {
-    var token: Token
-    var i = 0
-    var code = -1
-    while Instruction(rawValue: i) != nil {
-        if String(Instruction(rawValue: i)!) == chunk {
-            code = i
-            break
-        }
-        i += 1
-    }
-    if code > 0 {
-        token = Token(type: .Instruction)
-        token.intValue = code
-        return token
-    }
-    return nil
-}
-
-func checkLabelDefinition(chunk: [Character]) -> Token? {
-    var token: Token
-    var chars = chunk
-    var string = ""
-    if chars.removeLast() == ":" {
-        if ascii(chars[0]) > 122 || ascii(chars[0]) < 97 {
-            token = Token(type: .BadToken)
-            return token
-        }
-        for c in 0..<chars.count {
-            let code = ascii(chars[c])
-            if code > 122 || code < 97 {
-                if code > 57 || code < 48 {
-                    token = Token(type: .BadToken)
-                    return token
-                }
-            }
-            string.append(chars[c])
-        }
-        token = Token(type: .LabelDefinition)
-        token.stringValue = string
-        return token
-    } else {
-        return nil
-    }
-}
-
-func checkLabel(chunk: [Character]) -> Token {
-    var token: Token
-    var chars = chunk
-    var string = ""
-    if ascii(chars[0]) > 122 || ascii(chars[0]) < 97 {
-        token = Token(type: .BadToken)
-        return token
-    }
-    for c in 0..<chars.count {
-        let code = ascii(chars[c])
-        if code > 122 || code < 97 {
-            if code > 57 || code < 48 {
-                token = Token(type: .BadToken)
-                return token
-            }
-        }
-        string.append(chars[c])
-    }
-    token = Token(type: .Label)
-    token.stringValue = string
-    return token
-}
-
-
-
-
-
-
-
-
