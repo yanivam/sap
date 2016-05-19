@@ -12,22 +12,56 @@ class Assembler {
     
     var lines = [String]()
     var tokens = [[Token]]()
-    var labelDefs = [String: Int]()
-    let labels: Set<String> = []
-    var binary = [Int]()
+    var numLines = 0
+    var symbolTable = [String: Int]()
+    var reverseSymbolTable = [Int: String]()
+    var labelDefs: Set<String> = []     //for comparison to labels in first pass
+    var labels: Set<String> = []
+    var memory = [Int]()
+    var startLabel = ""
     var listing = ""
+    
+    let instructionParams = [0: "", 1: "r", 2: "r", 3: "l", 4: "rr", 5: "ir", 6: "rr", 7: "rl",
+                             8: "lr", 9: "rr", 10: "lr", 11: "rrr", 12: "ir", 13: "rr", 14: "lr",
+                             15: "rr", 16: "ir", 17: "rr", 18: "lr", 19: "rr", 20: "ir", 21: "rr",
+                             22: "lr", 23: "rr", 24: "ir", 25: "rr", 26: "lr", 27: "rr", 28: "l",
+                             29: "rl", 30: "rl", 31: "rl", 32: "rl", 33: "ir", 34: "rr", 35: "lr",
+                             36: "l", 37: "l", 38: "l", 39: "l", 40: "", 41: "r", 42: "r", 43: "r",
+                             44: "i", 45: "r", 46: "r", 47: "rr", 48: "rr", 49: "r", 50: "r",
+                             51: "lr", 52: "", 53: "rr", 54: "rr", 55: "l", 56: "", 57: "l",
+    ]
     
     func splitStringByWhiteSpace(expression: String)->[String] {
         return expression.componentsSeparatedByString(" ")
     }
     
     func splitStringIntoLines(expression: String)->[String] {
-        return expression.componentsSeparatedByString("/n")
+        return expression.componentsSeparatedByString("\n")
     }
     
-    func readFromTextFile(fileName: String) -> String {
-        let result = try? String(contentsOfFile: fileName, encoding: NSUTF8StringEncoding)
-        return result!
+    func readFromTextFile(filePath: String) -> String? {
+        var data: NSData!
+        let myFileManager = NSFileManager.defaultManager()
+        var result = ""
+        data = myFileManager.contentsAtPath(filePath)
+        if data == nil {return nil}
+        let dString = NSString(data: data!, encoding: NSUTF8StringEncoding)!
+        for i in 0..<dString.length {
+            result.append(Character(UnicodeScalar(dString.characterAtIndex(i))))
+        }
+        return result
+    }
+    
+    func writeToTextFile(filePath: String, data: String) -> Bool {
+        let fd = fopen(filePath, "wb")
+        if fd == nil {return false}
+        fwrite(data, 1, data.characters.count, fd)
+        fclose(fd)
+        return true
+    }
+    
+    func ascii(char: Character) -> Int {
+        return Int(String(char).utf8.first!)
     }
     
     func readFromConsole() -> String {
@@ -39,12 +73,309 @@ class Assembler {
         return line
     }
     
-    func tokenizeListing(file: String) {
-        lines = splitStringIntoLines(readFromTextFile(file))
-        let t = Tokenizer()
-        for line in lines {
-            tokens.append(t.getTokens(line))
+    func fit(string: String, targetLength: Int) -> String {
+        var chars = Array(string.characters)
+        let diff = targetLength - chars.count
+        var amendedString = ""
+        if diff == 0 {
+            return string
+        }
+        if diff < 0 {
+            for c in 0..<targetLength{
+                amendedString.append(chars[c])
+            }
+            return amendedString
+        }
+        amendedString += string
+        for _ in 0..<diff {
+            amendedString += " "
+        }
+        return amendedString
+    }
+    
+    func tokenizeListing(file: String) -> Bool {        //transforms listing lines into tokens
+        let text = readFromTextFile(file)
+        if text != nil {
+            lines = splitStringIntoLines(text!)
+            let t = Tokenizer()
+            for line in lines {
+                tokens.append(t.getTokens(line))
+                numLines += 1
+            }
+            return true
+        } else {
+            return false
         }
     }
     
+    func noBadToken(line: [Token]) -> Bool {   //returns if line has bad token or not
+        for t in line {
+            if t.type == TokenType.BadToken {
+                return false
+            }
+        }
+        return true
+    }
+    
+    func assembleListing(filePath: String) {
+        if tokenizeListing(filePath) {
+            if firstPass() {
+                secondPass()
+                writeListing(filePath)
+                writeBinary(filePath)
+                writeSymbolTable(filePath)
+                print("Listing, binary, and symbol table files written.")
+            } else {
+                writeListing(filePath)
+                print("Listing has errors. Check <program name>lst.txt")
+            }
+        } else {
+            print("File cannot be read. Check path and program folder.")
+        }
+    }
+
+    func firstPass() -> Bool {          //checks to make sure logic of each token line is valid
+        var shouldAssemble = true
+        var startFound = false
+        for index in 0..<numLines {
+            let token = tokens[index]
+            let line = lines[index]
+            if token.count != 0 {
+                let lineStart = token[0].type
+                if noBadToken(token) {
+                    switch lineStart {
+                    case .LabelDefinition:
+                        if !checkLabelDefinition(token, line: line) {shouldAssemble = false}
+                        listing += "\(line)\n"
+                    case .Directive:
+                        if token[0].stringValue! == ".start" {startFound = true}
+                        if !checkDirective(token, line: line) {shouldAssemble = false}
+                        listing += "\(line)\n"
+                    case .Instruction:
+                        if !checkInstruction(token, line: line) {shouldAssemble = false}
+                        listing += "\(line)\n"
+                    default:
+                        shouldAssemble = false
+                        listing += "\(line)         IMPROPER LINE: CANNOT START WITH \(lineStart)\n"
+                    }
+                } else {
+                    shouldAssemble = false
+                    listing += "\(line)         IMPROPER LINE: BAD TOKEN\n"
+                }
+            } else {
+                listing += "\n"
+            }
+        }
+        if !checkLabelMatch() {shouldAssemble = false}
+        if !startFound {shouldAssemble = false}
+        return shouldAssemble
+    }
+    
+    func secondPass() {         //assembles program if everything is valid
+        memory.append(0)        //space for length and initial program counter
+        memory.append(0)
+        var end = false
+        
+        for index in 0..<numLines {
+            if !end {                               //if .end directive not reached, assemble line
+                let tokenLine = tokens[index]
+                let line = lines[index]
+                var assembled = ""                  //first few assembled tokens for beginning of line in listing
+                var hasAllocation = false           //indicates if next token is allocation factor
+                var hasStart = false                //indicates if next token is label for program counter
+                
+                for token in tokenLine {
+                    assembled += "\(memory): "
+                    
+                    switch token.type {             //assembles based on token type
+                        case .LabelDefinition:
+                            symbolTable[token.stringValue!] = memory.count - 2
+                        
+                        case .Label:
+                            if !hasStart {
+                                reverseSymbolTable[memory.count - 2] = token.stringValue!
+                                memory.append(0)
+                                assembled += token.stringValue! + " "
+                            } else {
+                                startLabel = token.stringValue!
+                            }
+                        
+                        case .Directive:
+                            switch token.stringValue! {
+                            case ".start":
+                                hasStart = true
+                            case ".allocate":
+                                hasAllocation = true
+                            case ".end":
+                                end = true
+                            default: ()
+                        }
+                        
+                        case .ImmediateInteger:
+                            if !hasAllocation {
+                                memory.append(token.intValue!)
+                                assembled += "\(token.intValue!) "
+                            } else {
+                                for _ in 1...token.intValue! {memory.append(0)}
+                                assembled += "0 0 0"
+                            }
+                        
+                        case .ImmediateString:
+                            let string =  Array(token.stringValue!.characters)
+                            memory.append(string.count)
+                            assembled += "\(string.count) \(ascii(string[0])) \(ascii(string[1])) "
+                            for c in string {memory.append(ascii(c))}
+                        
+                        case .ImmediateTuple:
+                            let tuple = token.tupleValue!
+                            assembled += "\(tuple.currentState) \(tuple.inputCharacter) \(tuple.newState) "
+                            memory.append(tuple.currentState)
+                            memory.append(tuple.inputCharacter)
+                            memory.append(tuple.newState)
+                            memory.append(tuple.outputCharacter)
+                            memory.append(tuple.direction)
+                        
+                        case .Instruction:
+                            assembled += "\(token.intValue!) "
+                            memory.append(token.intValue!)
+                        
+                        case .Register:
+                            assembled += "\(token.intValue!) "
+                            memory.append(token.intValue!)
+                        
+                        default: ()
+                    }
+                    listing += fit(assembled, targetLength: 16) + line + "\n"
+                }
+            } else {
+                break
+            }
+            listing += "\nSymbol Table:\n"
+            for (label, location) in symbolTable {
+                listing += "\(label) \(location)\n"
+            }
+        }
+        for (location, label) in reverseSymbolTable {
+            memory[location] = symbolTable[label]!
+        }
+        memory[0] = memory.count - 2
+        memory[1] = symbolTable[startLabel]!
+    }
+    
+    func checkLabelDefinition(token: [Token], line: String) -> Bool {
+        labelDefs.insert(token[0].stringValue!)
+        switch token[1].type {
+            case .Directive:
+                return checkDirective(Array(token[1...token.count-1]), line: line)
+            case .Instruction:
+                return checkInstruction(Array(token[1...token.count-1]), line: line)
+            default:
+                listing += "\(line)         IMPROPER LINE: CANNOT FOLLOW LABELDEF WITH \(token[1].type)\n"
+                return false
+        }
+    }
+    
+    func writeListing(filePath: String) {
+        var listingName = filePath
+        for _ in 1...4 {
+            listingName = listingName.substringToIndex(listingName.endIndex.predecessor())
+        }
+        listingName += "lst.txt"
+        writeToTextFile(listingName, data: listing)
+    }
+    
+    func writeBinary(filePath: String) {
+        var binaryName = filePath
+        for _ in 1...4 {
+            binaryName = binaryName.substringToIndex(binaryName.endIndex.predecessor())
+        }
+        binaryName += "bin.txt"
+        var data = ""
+        for i in memory {
+            data += "\(i)\n"
+        }
+        writeToTextFile(binaryName, data: data)
+    }
+    
+    func writeSymbolTable(filePath: String) {
+        var stName = filePath
+        for _ in 1...4 {
+            stName = stName.substringToIndex(stName.endIndex.predecessor())
+        }
+        stName += "sym.txt"
+        var data = "Symbol Table:\n"
+        for (label, location) in symbolTable {
+            data += "\(label) \(location)\n"
+        }
+        writeToTextFile(stName, data: data)
+    }
+    
+    func printFile(filePath: String) {
+        print(readFromTextFile(filePath)!)
+    }
+    
+    
+    func checkDirective(token: [Token], line: String) -> Bool {
+        if token.count == 2 {
+            switch token[0].stringValue! {
+                case ".string":
+                    if token[1].type == .ImmediateString {return true}
+                case ".integer":
+                    if token[1].type == .ImmediateInteger {return true}
+                case ".tuple":
+                    if token[1].type == .ImmediateTuple {return true}
+                case ".allocate":
+                    if token[1].type == .ImmediateInteger {return true}
+                case ".start":
+                    if token[1].type == .Label {return true}
+                default: ()
+            }
+        } else if token.count == 1 {
+            if token[0].stringValue! == ".end" {return true}
+        }
+        listing += "\(line)         IMPROPER LINE: DIRECTIVE WITH INCORRECT PARAMETER\n"
+        return false
+    }
+    
+    func checkInstruction(token: [Token], line: String) -> Bool {
+        if token.count == 1 {return true}
+        let instrParams = Array(instructionParams[token[0].intValue!]!.characters)
+        var lineParams = token
+        lineParams.removeFirst()
+        if instrParams.count == lineParams.count {
+            for p in 0..<lineParams.count {
+                switch lineParams[p].type {
+                    case .Register:
+                        if instrParams[p] == "r" {return true}
+                    case .ImmediateInteger:
+                        if instrParams[p] == "i" {return true}
+                    case .Label:
+                        if instrParams[p] == "l" {
+                            labels.insert(lineParams[p].stringValue!)
+                            return true
+                        }
+                    default: ()
+                }
+            }
+        }
+        listing += "\(line)         IMPROPER LINE: INSTRUCTION WITH INCORRECT PARAMETER(S)\n"
+        return false
+    }
+    
+    func checkLabelMatch() -> Bool {
+        var wrongLabels = ""
+        for label in labels {
+            if !labelDefs.contains(label) {
+                wrongLabels += "\(label), "
+            }
+        }
+        if wrongLabels != "" {
+            listing += "\n\(wrongLabels)DO NOT EXIST AS LABEL DEFINITIONS"
+            return false
+        }
+        return true
+    }
+    
 }
+
+
