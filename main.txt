@@ -1,4 +1,66 @@
+//
+//  main.swift
+//  sap
+//
+//  Created by Daniel Korsunsky on 5/12/16.
+//  Copyright © 2016 Daniel Korsunsky. All rights reserved.
+//
+
 import Foundation
 
-var vm = VirtualMachine()
-vm.runVirtualMachine("turing")
+func helpTable() {
+    print("Help Table:\n")
+    print("\tasm <program name> - assemble the specified program\n")
+    print("\trun <program name> - run the specified program\n")
+    print("\tpath <path specification> - set the path for the SAP program directory\n")
+    print("\tprintlst <program name> - print listing file for the specified program\n")
+    print("\tprintbin <program name> - print binary file for the specified program\n")
+    print("\tprintsym <program name> - print symbol table for the specified program\n")
+    print("\thelp - print help table\n")
+    print("\tquit - terminate SAP program\n\n")
+}
+
+func runSAP() {
+    print("Welcome to SAP!\n\n")
+    helpTable()
+    let a = Assembler()
+    let vm = VirtualMachine()
+    var sapPath = "/Users/danielkorsunsky/Desktop/sap/sap/"
+    var command = a.splitStringByWhiteSpace(a.readFromConsole())
+    while command[0] != "quit" {
+        switch command[0] {
+        case "asm":
+            let filePath = sapPath + command[1] + ".txt"
+            a.assembleListing(filePath)
+        case "run":
+            let filePath = sapPath + command[1] + "bin.txt"
+            vm.runVirtualMachine(filePath)
+        case "path":
+            sapPath = command[1]
+        case "printlst":
+            let filePath = sapPath + command[1] + "lst.txt"
+            a.printFile(filePath)
+        case "printbin":
+            let filePath = sapPath + command[1] + "bin.txt"
+            a.printFile(filePath)
+        case "printsym":
+            let filePath = sapPath + command[1] + "sym.txt"
+            a.printFile(filePath)
+        case "help":
+            helpTable()
+        default:
+            print("Command does not exist.")
+        }
+        print("\n\n")
+        command = a.splitStringByWhiteSpace(a.readFromConsole())
+    }
+    print("SAP termimated.")
+}
+
+runSAP()
+
+
+
+
+
+
