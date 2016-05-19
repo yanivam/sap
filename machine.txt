@@ -1,3 +1,11 @@
+//
+//  VirtualMachine.swift
+//  sap
+//
+//  Created by Daniel Korsunsky on 5/12/16.
+//  Copyright © 2016 Daniel Korsunsky. All rights reserved.
+//
+
 import Foundation
 
 class VirtualMachine {
@@ -47,30 +55,40 @@ class VirtualMachine {
     
     var stack = Stack(size: 100) // stack code below
     
-    
     func splitStringIntoParts(expression: String)->[String] {
         return expression.componentsSeparatedByString(" ")
     }
     
     func splitStringIntoLines(expression: String)->[String] {
-        return expression.componentsSeparatedByString("/n")
+        return expression.componentsSeparatedByString("\n")
     }
     
-    func readFromTextFile(fileName: String)->String {
-        let result = try? String(contentsOfFile: fileName, encoding: NSUTF8StringEncoding)
-        return result!
-    }
-    
-    func readAssembledCommands(file: String) {
-        let lines = splitStringIntoLines(readFromTextFile(file))
-        for line in lines {
-            let commands = splitStringIntoParts(line)
-            for c in commands {
-                memory.append(Int(c)!)
-            }
+    func readFromTextFile(filePath: String)-> String? {
+        var data: NSData!
+        let myFileManager = NSFileManager.defaultManager()
+        var result = ""
+        data = myFileManager.contentsAtPath(filePath)
+        if data == nil {return nil}
+        let dString = NSString(data: data!, encoding: NSUTF8StringEncoding)!
+        for i in 0..<dString.length {
+            result.append(Character(UnicodeScalar(dString.characterAtIndex(i))))
         }
-        length = memory.removeFirst()
-        programCounter = memory.removeFirst()
+        return result
+    }
+    
+    func readAssembledCommands(file: String) -> Bool {
+        let text = readFromTextFile(file)
+        if text != nil {
+            let lines = splitStringIntoLines(text!)
+            for line in lines {
+                memory.append(Int(line)!)
+            }
+            length = memory.removeFirst()
+            programCounter = memory.removeFirst()
+            return true
+        } else {
+            return false
+        }
     }
     
     enum Instruction: Int {
@@ -451,132 +469,135 @@ class VirtualMachine {
     }
     
     
-    func runVirtualMachine(fileName: String) {
-        readAssembledCommands(fileName)
-        var code = memory[programCounter]
-        while code != 0 {
-            let param1 = memory[programCounter + 1]
-            let param2 = memory[programCounter + 2]
-            switch Instruction(rawValue: code)! {
-            case .clrr:
-                clrr(param1)
-            case .clrx:
-                clrx(param1)
-            case .clrm:
-                clrm(param1)
-            case .clrb:
-                clrb(param1, p2: param2)
-            case .movir:
-                movir(param1, p2: param2)
-            case .movrr:
-                movrr(param1, p2: param2)
-            case .movrm:
-                movrm(param1, p2: param2)
-            case .movmr:
-                movmr(param1, p2: param2)
-            case .movxr:
-                movxr(param1, p2: param2)
-            case .movar:
-                movar(param1, p2: param2)
-            case .movb:
-                let param3 = memory[programCounter + 3]
-                movb(param1, p2: param2, p3: param3)
-            case .addir:
-                addir(param1, p2: param2)
-            case .addrr:
-                addrr(param1, p2: param2)
-            case .addmr:
-                addmr(param1, p2: param2)
-            case .addxr:
-                addxr(param1, p2: param2)
-            case .subir:
-                subir(param1, p2: param2)
-            case .subrr:
-                subrr(param1, p2: param2)
-            case .submr:
-                submr(param1, p2: param2)
-            case .subxr:
-                subxr(param1, p2: param2)
-            case .mulir:
-                mulir(param1, p2: param2)
-            case .mulrr:
-                mulrr(param1, p2: param2)
-            case .mulmr:
-                mulmr(param1, p2: param2)
-            case .mulxr:
-                mulxr(param1, p2: param2)
-            case .divir:
-                divir(param1, p2: param2)
-            case .divrr:
-                divrr(param1, p2: param2)
-            case .divmr:
-                divmr(param1, p2: param2)
-            case .divxr:
-                divxr(param1, p2: param2)
-            case .jmp:
-                jmp(param1)
-            case .sojz:
-                sojz(param1, p2: param2)
-            case .sojnz:
-                sojnz(param1, p2: param2)
-            case .aojz:
-                aojz(param1, p2: param2)
-            case .aojnz:
-                aojnz(param1, p2: param2)
-            case .cmpir:
-                cmpir(param1, p2: param2)
-            case .cmprr:
-                cmprr(param1, p2: param2)
-            case .cmpmr:
-                cmpmr(param1, p2: param2)
-            case .jmpn:
-                jmpn(param1)
-            case .jmpz:
-                jmpz(param1)
-            case .jmpp:
-                jmpp(param1)
-            case .jsr:
-                jsr(param1)
-            case .ret:
-                ret()
-            case .push:
-                push(param1)
-            case .pop:
-                pop(param1)
-            case .stackc:
-                stackc(param1)
-            case .outci:
-                outci(param1)
-            case .outcr:
-                outcr(param1)
-            case .outcx:
-                outcx(param1)
-            case .outcb:
-                outcb(param1, p2: param2)
-            case .readi:
-                readi(param1, p2: param2)
-            case .printi:
-                printi(param1)
-            case .readc:
-                readc(param1)
-            case .readln:
-                readln(param1, p2: param2)
-            case .brk:
-                brk()
-            case .movrx:
-                movrx(param1, p2: param2)
-            case .movxx:
-                movxx(param1, p2: param2)
-            case .outs:
-                outs(param1)
-            case .nop:
-                nop()
-            case .jmpne:
-                jmpne(param1)
-            default:
-                print("Error: not a valid instruction")
+    func runVirtualMachine(filePath: String) {
+        if readAssembledCommands(filePath) {
+            var code = memory[programCounter]
+            while code != 0 {
+                let param1 = memory[programCounter + 1]
+                let param2 = memory[programCounter + 2]
+                switch Instruction(rawValue: code)! {
+                case .clrr:
+                    clrr(param1)
+                case .clrx:
+                    clrx(param1)
+                case .clrm:
+                    clrm(param1)
+                case .clrb:
+                    clrb(param1, p2: param2)
+                case .movir:
+                    movir(param1, p2: param2)
+                case .movrr:
+                    movrr(param1, p2: param2)
+                case .movrm:
+                    movrm(param1, p2: param2)
+                case .movmr:
+                    movmr(param1, p2: param2)
+                case .movxr:
+                    movxr(param1, p2: param2)
+                case .movar:
+                    movar(param1, p2: param2)
+                case .movb:
+                    let param3 = memory[programCounter + 3]
+                    movb(param1, p2: param2, p3: param3)
+                case .addir:
+                    addir(param1, p2: param2)
+                case .addrr:
+                    addrr(param1, p2: param2)
+                case .addmr:
+                    addmr(param1, p2: param2)
+                case .addxr:
+                    addxr(param1, p2: param2)
+                case .subir:
+                    subir(param1, p2: param2)
+                case .subrr:
+                    subrr(param1, p2: param2)
+                case .submr:
+                    submr(param1, p2: param2)
+                case .subxr:
+                    subxr(param1, p2: param2)
+                case .mulir:
+                    mulir(param1, p2: param2)
+                case .mulrr:
+                    mulrr(param1, p2: param2)
+                case .mulmr:
+                    mulmr(param1, p2: param2)
+                case .mulxr:
+                    mulxr(param1, p2: param2)
+                case .divir:
+                    divir(param1, p2: param2)
+                case .divrr:
+                    divrr(param1, p2: param2)
+                case .divmr:
+                    divmr(param1, p2: param2)
+                case .divxr:
+                    divxr(param1, p2: param2)
+                case .jmp:
+                    jmp(param1)
+                case .sojz:
+                    sojz(param1, p2: param2)
+                case .sojnz:
+                    sojnz(param1, p2: param2)
+                case .aojz:
+                    aojz(param1, p2: param2)
+                case .aojnz:
+                    aojnz(param1, p2: param2)
+                case .cmpir:
+                    cmpir(param1, p2: param2)
+                case .cmprr:
+                    cmprr(param1, p2: param2)
+                case .cmpmr:
+                    cmpmr(param1, p2: param2)
+                case .jmpn:
+                    jmpn(param1)
+                case .jmpz:
+                    jmpz(param1)
+                case .jmpp:
+                    jmpp(param1)
+                case .jsr:
+                    jsr(param1)
+                case .ret:
+                    ret()
+                case .push:
+                    push(param1)
+                case .pop:
+                    pop(param1)
+                case .stackc:
+                    stackc(param1)
+                case .outci:
+                    outci(param1)
+                case .outcr:
+                    outcr(param1)
+                case .outcx:
+                    outcx(param1)
+                case .outcb:
+                    outcb(param1, p2: param2)
+                case .readi:
+                    readi(param1, p2: param2)
+                case .printi:
+                    printi(param1)
+                case .readc:
+                    readc(param1)
+                case .readln:
+                    readln(param1, p2: param2)
+                case .brk:
+                    brk()
+                case .movrx:
+                    movrx(param1, p2: param2)
+                case .movxx:
+                    movxx(param1, p2: param2)
+                case .outs:
+                    outs(param1)
+                case .nop:
+                    nop()
+                case .jmpne:
+                    jmpne(param1)
+                default:
+                    print("Error: not a valid instruction")
+                }
+                code = memory[programCounter]
             }
-            code = memory[programCounter]
+        } else {
+            print("Error: file does not exist")
         }
     }
 
