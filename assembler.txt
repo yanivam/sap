@@ -117,7 +117,21 @@ class Assembler {
         return true
     }
     
+    func clearData() {
+         lines.removeAll()
+         tokens.removeAll()
+         numLines = 0
+         symbolTable.removeAll()
+         reverseSymbolTable.removeAll()
+         labelDefs.removeAll()
+         labels.removeAll()
+         memory.removeAll()
+         startLabel = ""
+         listing = ""
+    }
+    
     func assembleListing(filePath: String) {
+        clearData()
         if tokenizeListing(filePath) {
             if firstPass() {
                 secondPass()
@@ -127,7 +141,7 @@ class Assembler {
                 print("Listing, binary, and symbol table files written.")
             } else {
                 writeListing(filePath)
-                print("Listing has errors. Check <program name>lst.txt")
+                print("File has errors. Check listing for comments.")
             }
         } else {
             print("File cannot be read. Check path and program folder.")
@@ -175,6 +189,7 @@ class Assembler {
         memory.append(0)        //space for length and initial program counter
         memory.append(0)
         var end = false
+        listing = ""
         
         for index in 0..<numLines {
             if !end {                               //if .end directive not reached, assemble line
@@ -183,17 +198,16 @@ class Assembler {
                 var assembled = ""                  //first few assembled tokens for beginning of line in listing
                 var hasAllocation = false           //indicates if next token is allocation factor
                 var hasStart = false                //indicates if next token is label for program counter
-                
+                assembled += "\(memory.count - 2): "
+        
                 for token in tokenLine {
-                    assembled += "\(memory): "
                     
                     switch token.type {             //assembles based on token type
                         case .LabelDefinition:
                             symbolTable[token.stringValue!] = memory.count - 2
-                        
                         case .Label:
                             if !hasStart {
-                                reverseSymbolTable[memory.count - 2] = token.stringValue!
+                                reverseSymbolTable[memory.count] = token.stringValue!
                                 memory.append(0)
                                 assembled += token.stringValue! + " "
                             } else {
@@ -223,12 +237,14 @@ class Assembler {
                         case .ImmediateString:
                             let string =  Array(token.stringValue!.characters)
                             memory.append(string.count)
-                            assembled += "\(string.count) \(ascii(string[0])) \(ascii(string[1])) "
+                            assembled += "\(string.count) "
+                            for i in 0...2 {assembled += "\(ascii(string[i])) "}
                             for c in string {memory.append(ascii(c))}
                         
                         case .ImmediateTuple:
                             let tuple = token.tupleValue!
                             assembled += "\(tuple.currentState) \(tuple.inputCharacter) \(tuple.newState) "
+                            assembled += "\(tuple.outputCharacter) \(tuple.direction)"
                             memory.append(tuple.currentState)
                             memory.append(tuple.inputCharacter)
                             memory.append(tuple.newState)
@@ -245,15 +261,15 @@ class Assembler {
                         
                         default: ()
                     }
-                    listing += fit(assembled, targetLength: 16) + line + "\n"
                 }
+                listing += fit(assembled, targetLength: 23) + line + "\n"
             } else {
                 break
             }
-            listing += "\nSymbol Table:\n"
-            for (label, location) in symbolTable {
-                listing += "\(label) \(location)\n"
-            }
+        }
+        listing += "\nSymbol Table:\n"
+        for (label, location) in symbolTable {
+            listing += "\(label) \(location)\n"
         }
         for (location, label) in reverseSymbolTable {
             memory[location] = symbolTable[label]!
@@ -294,6 +310,7 @@ class Assembler {
         for i in memory {
             data += "\(i)\n"
         }
+        data = data.substringToIndex(data.endIndex.predecessor())
         writeToTextFile(binaryName, data: data)
     }
     
@@ -311,7 +328,12 @@ class Assembler {
     }
     
     func printFile(filePath: String) {
-        print(readFromTextFile(filePath)!)
+        let text = readFromTextFile(filePath)
+        if text != nil {
+            print(text!)
+        } else {
+            print("Program not found.")
+        }
     }
     
     
@@ -327,7 +349,10 @@ class Assembler {
                 case ".allocate":
                     if token[1].type == .ImmediateInteger {return true}
                 case ".start":
-                    if token[1].type == .Label {return true}
+                    if token[1].type == .Label {
+                        labels.insert(token[1].stringValue!)
+                        return true
+                    }
                 default: ()
             }
         } else if token.count == 1 {
@@ -377,5 +402,17 @@ class Assembler {
     }
     
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
