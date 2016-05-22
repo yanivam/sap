@@ -67,7 +67,7 @@ class Tokenizer {
         let chunks = getChunks(line)
         for chunk in chunks {
             var token: Token
-            let chars = Array(chunk.characters)
+            var chars = Array(chunk.characters)
             let charsLC = Array(chunk.lowercaseString.characters)
             var tokenFound = false
             switch chars[0] {
@@ -76,7 +76,11 @@ class Tokenizer {
                 tokenFound = true
             case "\"":                                  //string
                 token = Token(type: .ImmediateString)
-                token.stringValue = chunk
+                chars.removeLast()
+                chars.removeFirst()
+                var string = ""
+                for c in chars {string.append(c)}
+                token.stringValue = string
                 tokens.append(token)
                 tokenFound = true
             case "#":                                   //integer
@@ -86,8 +90,16 @@ class Tokenizer {
                 tokens.append(checkTuple(chars))
                 tokenFound = true
             case "r":                                   //register
-                tokens.append(checkRegister(chars))
-                tokenFound = true
+                if chars.count >= 2 {
+                    if Int(String(chars[1])) != nil {
+                        tokens.append(checkRegister(chars))
+                        tokenFound = true
+                    }
+                } else {
+                    token = Token(type: .BadToken)
+                    tokens.append(token)
+                    tokenFound = true
+                }
             default: ()
             }
             if !tokenFound {
