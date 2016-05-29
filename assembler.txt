@@ -18,7 +18,6 @@ class Assembler {
     var labelDefs: Set<String> = []     //for comparison to labels in first pass
     var labels: Set<String> = []
     var memory = [Int]()
-    var startLabel = ""
     var listing = ""
     
     let instructionParams = [0: "", 1: "r", 2: "r", 3: "l", 4: "rr", 5: "ir", 6: "rr", 7: "rl",
@@ -126,7 +125,6 @@ class Assembler {
          labelDefs.removeAll()
          labels.removeAll()
          memory.removeAll()
-         startLabel = ""
          listing = ""
     }
     
@@ -135,6 +133,7 @@ class Assembler {
         if tokenizeListing(filePath) {
             if firstPass() {
                 secondPass()
+                thirdPass()
                 writeListing(filePath)
                 writeBinary(filePath)
                 writeSymbolTable(filePath)
@@ -189,16 +188,13 @@ class Assembler {
         memory.append(0)        //space for length and initial program counter
         memory.append(0)
         var end = false
-        listing = ""
+        var startLabel = ""
         
         for index in 0..<numLines {
             if !end {                               //if .end directive not reached, assemble line
                 let tokenLine = tokens[index]
-                let line = lines[index]
-                var assembled = ""                  //first few assembled tokens for beginning of line in listing
                 var hasAllocation = false           //indicates if next token is allocation factor
                 var hasStart = false                //indicates if next token is label for program counter
-                assembled += "\(memory.count - 2): "
         
                 for token in tokenLine {
                     
@@ -209,7 +205,6 @@ class Assembler {
                             if !hasStart {
                                 reverseSymbolTable[memory.count] = token.stringValue!
                                 memory.append(0)
-                                assembled += token.stringValue! + " "
                             } else {
                                 startLabel = token.stringValue!
                             }
@@ -228,23 +223,17 @@ class Assembler {
                         case .ImmediateInteger:
                             if !hasAllocation {
                                 memory.append(token.intValue!)
-                                assembled += "\(token.intValue!) "
                             } else {
                                 for _ in 1...token.intValue! {memory.append(0)}
-                                assembled += "0 0 0"
                             }
                         
                         case .ImmediateString:
                             let string =  Array(token.stringValue!.characters)
                             memory.append(string.count)
-                            assembled += "\(string.count) "
-                            for i in 0...2 {assembled += "\(ascii(string[i])) "}
                             for c in string {memory.append(ascii(c))}
                         
                         case .ImmediateTuple:
                             let tuple = token.tupleValue!
-                            assembled += "\(tuple.currentState) \(tuple.inputCharacter) \(tuple.newState) "
-                            assembled += "\(tuple.outputCharacter) \(tuple.direction)"
                             memory.append(tuple.currentState)
                             memory.append(tuple.inputCharacter)
                             memory.append(tuple.newState)
@@ -252,14 +241,93 @@ class Assembler {
                             memory.append(tuple.direction)
                         
                         case .Instruction:
-                            assembled += "\(token.intValue!) "
                             memory.append(token.intValue!)
                         
                         case .Register:
-                            assembled += "\(token.intValue!) "
                             memory.append(token.intValue!)
                         
                         default: ()
+                    }
+                }
+            } else {
+                break
+            }
+        }
+        for (location, label) in reverseSymbolTable {
+            memory[location] = symbolTable[label]!
+        }
+        memory[0] = memory.count - 2
+        memory[1] = symbolTable[startLabel]!
+    }
+    
+    func thirdPass() {         //writes listing
+        var end = false
+        listing = ""
+        var memCount = 0
+        
+        for index in 0..<numLines {
+            if !end {
+                let tokenLine = tokens[index]
+                let line = lines[index]
+                var assembled = ""                  //first few assembled tokens for beginning of line in listing
+                var hasAllocation = false
+                var hasStart = false
+                assembled += "\(memCount): "
+                
+                for token in tokenLine {
+                    
+                    switch token.type {
+                    case .Label:
+                        if !hasStart {
+                            assembled += "\(symbolTable[token.stringValue!]!) "
+                            memCount += 1
+                        }
+                    case .Directive:
+                        switch token.stringValue! {
+                        case ".allocate":
+                            hasAllocation = true
+                        case ".start":
+                            hasStart = true
+                        case ".end":
+                            end = true
+                        default: ()
+                        }
+                        
+                    case .ImmediateInteger:
+                        if !hasAllocation {
+                            assembled += "\(token.intValue!) "
+                            memCount += 1
+                        } else {
+                            assembled += "0 0 0"
+                            for _ in 1...token.intValue! {memCount += 1}
+                        }
+                        
+                    case .ImmediateString:
+                        let string =  Array(token.stringValue!.characters)
+                        assembled += "\(string.count) "
+                        memCount += 1
+                        if string.count > 2 {
+                            for i in 0...2 {assembled += "\(ascii(string[i])) "}
+                        } else {
+                            for i in 0..<string.count {assembled += "\(ascii(string[i])) "}
+                        }
+                        for _ in string {memCount += 1}
+                        
+                    case .ImmediateTuple:
+                        let tuple = token.tupleValue!
+                        assembled += "\(tuple.currentState) \(tuple.inputCharacter) \(tuple.newState) "
+                        assembled += "\(tuple.outputCharacter) \(tuple.direction)"
+                        memCount += 5
+                        
+                    case .Instruction:
+                        assembled += "\(token.intValue!) "
+                        memCount += 1
+                        
+                    case .Register:
+                        assembled += "\(token.intValue!) "
+                        memCount += 1
+                        
+                    default: ()
                     }
                 }
                 listing += fit(assembled, targetLength: 23) + line + "\n"
@@ -271,11 +339,6 @@ class Assembler {
         for (label, location) in symbolTable {
             listing += "\(label) \(location)\n"
         }
-        for (location, label) in reverseSymbolTable {
-            memory[location] = symbolTable[label]!
-        }
-        memory[0] = memory.count - 2
-        memory[1] = symbolTable[startLabel]!
     }
     
     func checkLabelDefinition(token: [Token], line: String) -> Bool {
@@ -402,17 +465,3 @@ class Assembler {
     }
     
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
