@@ -1,0 +1,321 @@
+//
+//  Debugger.swift
+//  Assembler
+//
+//  Created by Yaniv Amiri on 5/28/16.
+//  Copyright © 2016 Yaniv Amiri. All rights reserved.
+//
+
+import Foundation
+
+class Debugger {
+    
+    var breaks = [Int: Bool]()
+    var breaksT = [Int: Bool]()
+    var helper: protocol<DebuggerHelper>
+    var currentMem = 0
+    var file: String
+    var symbolTable = [String: Int]()
+    var reverseSymbolTable = [Int: String]()
+    var reverseInstructionTable = [Int: String]()
+    
+    init(helperH: protocol<DebuggerHelper>, count: Int, fileIn: String) {
+        helper = helperH
+        for i in 0...count {
+            breaks[i] = false
+            breaksT[i] = false
+        }
+        currentMem = helper.getPC()
+        file = fileIn
+    }
+    
+    func printHelp() {
+        print("setbk <address> - set breakpoint at <address>")
+        print("rmbk <address> - remove breakpoint at <address>")
+        print("clrbk - clear all breakpoints")
+        print("disbk - temporarily diasble all breakpoints")
+        print("enbk - enable breakpoints")
+        print("pbk - print breakpoint table")
+        print("preg - print the registers")
+        print("wreg <number> <value> - write value of register <number> to <value>")
+        print("pmem <start address> <end address> - print memory locations from <start adress> ending just before <end address>")
+        print("deas <start address> <end address> - deassemble memory locations from <start adress> ending just before <end address>")
+        print("wmem <address> <value> - change value of memory in <address> to <value>")
+        print("pst - print symbol table")
+        print("g - continue program execution")
+        print("s - single Step")
+        print("exit - terminate virtual machine")
+        print("help - print this help table")
+    }
+    
+    func readFromConsole() -> String {
+        let BUFSIZE = 1024
+        var buf = [CChar](count: BUFSIZE, repeatedValue: CChar(0))
+        fgets(&buf, Int32(BUFSIZE), stdin)
+        var line: String = String.fromCString(buf)!
+        line = line.substringToIndex(line.endIndex.predecessor())
+        return line
+    }
+    
+    func readFromTextFile(filePath: String) -> String? {
+        var data: NSData!
+        let myFileManager = NSFileManager.defaultManager()
+        var result = ""
+        data = myFileManager.contentsAtPath(filePath)
+        if data == nil {return nil}
+        let dString = NSString(data: data!, encoding: NSUTF8StringEncoding)!
+        for i in 0..<dString.length {
+            result.append(Character(UnicodeScalar(dString.characterAtIndex(i))))
+        }
+        return result
+    }
+    
+    func readAssembledCommands(file: String) -> Bool {
+        var symFile: String
+        symFile = String(UTF8String: file[file.startIndex...file.endIndex.advancedBy(-8)])!
+        let text = readFromTextFile(symFile + "sym.txt")
+        if text != nil {
+            var lines = splitStringIntoLines(text!)
+            lines.removeFirst()
+            lines.removeLast()
+            for line in lines {
+                var splitLine = splitStringByWhiteSpace(line)
+                symbolTable[String(splitLine[0])] = Int(splitLine[1])!
+                reverseSymbolTable[Int(splitLine[1])!] = String(splitLine[0])
+            }
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    
+    func splitStringByWhiteSpace(expression: String)->[String] {
+        return expression.componentsSeparatedByString(" ")
+    }
+    
+    func splitStringIntoLines(expression: String)->[String] {
+        return expression.componentsSeparatedByString("\n")
+    }
+    
+    func reverseInstructionTableInit() {
+        reverseInstructionTable[0] = "halt"
+        reverseInstructionTable[1] = "clrr r"
+        reverseInstructionTable[2] = "clrx r"
+        reverseInstructionTable[3] = "clrm r"
+        reverseInstructionTable[4] = "clrb r r"
+        reverseInstructionTable[5] = "movir i r"
+        reverseInstructionTable[6] = "movrr r r"
+        reverseInstructionTable[7] = "movrm r m"
+        reverseInstructionTable[8] = "movmr m r"
+        reverseInstructionTable[9] = "movxr r r"
+        reverseInstructionTable[10] = "movar m r"
+        reverseInstructionTable[11] = "movb r r r"
+        reverseInstructionTable[12] = "addir i r"
+        reverseInstructionTable[13] = "addrr r r"
+        reverseInstructionTable[14] = "addmr m r"
+        reverseInstructionTable[15] = "addxr r r"
+        reverseInstructionTable[16] = "subir i r"
+        reverseInstructionTable[17] = "subrr r r"
+        reverseInstructionTable[18] = "submr m r"
+        reverseInstructionTable[19] = "subxr r r"
+        reverseInstructionTable[20] = "mulir i r"
+        reverseInstructionTable[21] = "mulrr r r"
+        reverseInstructionTable[22] = "mulmr m r"
+        reverseInstructionTable[23] = "mulxr r r"
+        reverseInstructionTable[24] = "divir i r"
+        reverseInstructionTable[25] = "divrr r r"
+        reverseInstructionTable[26] = "divmr m r"
+        reverseInstructionTable[27] = "divxr r r"
+        reverseInstructionTable[28] = "jmp m"
+        reverseInstructionTable[29] = "sojz r m"
+        reverseInstructionTable[30] = "sojnz r m"
+        reverseInstructionTable[31] = "aojz r m"
+        reverseInstructionTable[32] = "aojnz r m"
+        reverseInstructionTable[33] = "cmpir i r"
+        reverseInstructionTable[34] = "cmprr r r"
+        reverseInstructionTable[35] = "cmpmr m r"
+        reverseInstructionTable[36] = "jmpn m"
+        reverseInstructionTable[37] = "jmpz m"
+        reverseInstructionTable[38] = "jmpp m"
+        reverseInstructionTable[39] = "jsr m"
+        reverseInstructionTable[40] = "ret 0"
+        reverseInstructionTable[41] = "push r"
+        reverseInstructionTable[42] = "pop r"
+        reverseInstructionTable[43] = "stackc r"
+        reverseInstructionTable[44] = "outci i"
+        reverseInstructionTable[45] = "outcr r"
+        reverseInstructionTable[46] = "outcx r"
+        reverseInstructionTable[47] = "outcb r r"
+        reverseInstructionTable[48] = "readi r"
+        reverseInstructionTable[49] = "printi r"
+        reverseInstructionTable[50] = "readc r"
+        reverseInstructionTable[51] = "readln i r"
+        reverseInstructionTable[52] = "brk 0"
+        reverseInstructionTable[53] = "movrx r r"
+        reverseInstructionTable[54] = "movxx r r"
+        reverseInstructionTable[55] = "outs m"
+        reverseInstructionTable[56] = "nop"
+        reverseInstructionTable[57] = "jmpne m"
+    }
+    
+    func deas(start: Int, end: Int) {
+        var currentLoc = start
+        while(currentLoc < end) {
+        if(reverseSymbolTable.keys.contains(currentLoc)) {
+            let instruction = splitStringByWhiteSpace(instructionChooser(helper.getMemoryAtAddress(currentLoc)))
+            print("\(reverseSymbolTable[currentLoc]!): \(instruction[0]) \(paramGetter(instruction, currentLoc: currentLoc))")
+            currentLoc += instruction.count
+        } else {
+            let instruction = splitStringByWhiteSpace(instructionChooser(helper.getMemoryAtAddress(currentLoc)))
+            print("\(instruction[0]) \(paramGetter(instruction, currentLoc: currentLoc))")
+            currentLoc += instruction.count
+        }
+        }
+    }
+    
+    func paramGetter(instruction: [String], currentLoc: Int) -> String {
+        var stringRes = ""
+        var newLoc = currentLoc + 1
+        for i in 1..<instruction.count {
+            if(instruction[i] == "r"){
+                stringRes += "r\(helper.getMemoryAtAddress(newLoc)) "
+            }
+            else if (instruction[i] == "m" && reverseSymbolTable.keys.contains(helper.getMemoryAtAddress(newLoc))) {
+                stringRes += "\(reverseSymbolTable[helper.getMemoryAtAddress(newLoc)]!) "
+            }
+            else if (instruction[i] == "i") {
+                stringRes += "#\(helper.getMemoryAtAddress(newLoc))"
+            }
+            else {
+                stringRes += ""
+            }
+            newLoc += 1
+        }
+        return stringRes
+    }
+    
+    func instructionChooser(instruction: Int) -> String {
+        if(reverseInstructionTable.keys.contains(instruction)) {
+            return(reverseInstructionTable[instruction])!
+        } else {
+            return "\(instruction) 0"
+        }
+    }
+
+    
+    func runDebugger() -> String {
+        readAssembledCommands(file)
+        reverseInstructionTableInit()
+        print("\n")
+        printHelp()
+        breaks = breaksT
+        currentMem = helper.getPC()
+        print("\(currentMem):")
+        var command = splitStringByWhiteSpace(readFromConsole())
+        while command[0] != "exit" {
+            currentMem = helper.getPC()
+            print("\(currentMem):")
+            switch command[0] {
+            case "setbk":                              //sets a breakpoint at the given location in memory(given by user)
+                if(Int(command[1]) != nil) {
+                    breaks[Int(command[1])!] = true
+                    breaksT = breaks
+                } else if(symbolTable[command[1]] != nil) {
+                    breaks[symbolTable[command[1]]!] = true
+                    breaksT = breaks
+                } else {
+                    print("Address given is not available")
+                }
+            case "rmbk":                               //removes a breakpoint at the given location in memory(given by user)
+                if(Int(command[1]) != nil) {
+                    breaks[Int(command[1])!] = false
+                    breaksT = breaks
+                } else if(symbolTable[command[1]] != nil) {
+                    breaks[symbolTable[command[1]]!] = false
+                    breaksT = breaks
+                } else {
+                    print("Address given is not available")
+                }
+            case "clrbk":
+                for i in 0...(breaks.count - 1) {
+                    breaks[i] = false
+                }
+                breaksT = breaks
+            case "disbk":
+                breaksT = breaks
+                for i in 0...(breaks.count - 1) {
+                    breaks[i] = false
+                }
+            case "enbk":
+                breaks = breaksT
+            case "pbk":
+                for key in breaks {
+                    if (key.1 == true) {
+                    print("\(key.0): \(key.1)")
+                    }
+                }
+            case "preg":
+                for i in 0...9 {
+                    if(helper.getRegisterNumber(i) >= 0) {
+                       print(helper.getRegisterNumber(i))
+                    }
+                }
+            case "wreg":
+                helper.setRegisterNumber(Int(command[1])!, value: Int(command[2])!)
+            case "pmem":
+                if(Int(command[1]) != nil) {
+                    for i in Int(command[1])!...(Int(command[2])! - 1) {
+                        print(helper.getMemoryAtAddress(i))
+                    }
+                } else if(symbolTable[command[1]] != nil && symbolTable[command[2]] != nil) {
+                    for i in symbolTable[command[1]]!...(symbolTable[command[2]]! - 1) {
+                        print(helper.getMemoryAtAddress(i))
+                    }
+                } else {
+                    print("Address given is not available")
+                }
+            case "deas":
+                if(Int(command[1]) != nil) {
+                    deas(Int(command[1])!, end: (Int(command[2])! - 1))
+                } else if(symbolTable[command[1]] != nil && symbolTable[command[2]] != nil) {
+                    deas(symbolTable[command[1]]!, end: (symbolTable[command[2]]! - 1))
+                } else {
+                    print("Address given is not available")
+                }
+            case "wmem":
+                if(Int(command[1]) != nil) {
+                    helper.setMemoryAtAddress(Int(command[1])!, value: Int(command[2])!)
+                } else if(symbolTable[command[1]] != nil) {
+                    helper.setMemoryAtAddress(symbolTable[command[1]]!, value: Int(command[2])!)
+                } else {
+                    print("Address given is not available")
+                }
+            case "pst":
+                for symbol in symbolTable {
+                    print("\(symbol.0): \(symbol.1)")
+                }
+            case "g":
+                return ""
+            case "s":
+                breaksT = breaks
+                for i in 0...(breaks.count - 1) {
+                breaks[i] = true
+                }
+                breaks[currentMem] = false
+                return ""
+            case "help":
+                printHelp()
+            default:
+                print("Command does not exist.")
+            }
+            command = splitStringByWhiteSpace(readFromConsole())
+        }
+        for i in 0...(breaks.count - 1) {
+            breaks[i] = false
+        }
+        helper.setMemoryAtAddress(currentMem, value: 0)
+        return ""
+    }
+    
+}
