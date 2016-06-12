@@ -91,8 +91,8 @@ class VirtualMachine : DebuggerHelper {
             for line in lines {
                 memory.append(Int(line)!)
             }
-            length = memory.removeFirst()
-            programCounter = memory.removeFirst()
+            length = memory[0] + 2
+            programCounter = memory[1] + 2
             return true
         } else {
             return false
@@ -117,12 +117,12 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func clrx(p1: Int) {
-        memory[registers[p1]] = 0
+        memory[2 + registers[p1]] = 0
         programCounter += 2
     }
     
     func clrm(p1: Int) {
-        memory[p1] = 0
+        memory[2 + p1] = 0
         programCounter += 2
     }
     
@@ -130,7 +130,7 @@ class VirtualMachine : DebuggerHelper {
         let start = registers[p1]
         let end = start + registers[p2]
         for i in start...end {
-            memory[i] = 0
+            memory[2 + i] = 0
         }
         programCounter += 3
     }
@@ -146,17 +146,17 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func movrm(p1: Int, p2: Int) {
-        memory[p2] = registers[p1]
+        memory[2 + p2] = registers[p1]
         programCounter += 3
     }
     
     func movmr(p1: Int, p2: Int) {
-        registers[p2] = memory[p1]
+        registers[p2] = memory[2 + p1]
         programCounter += 3
     }
     
     func movxr(p1: Int, p2: Int) {
-        registers[p2] = memory[registers[p1]]
+        registers[p2] = memory[2 + registers[p1]]
         programCounter += 3
     }
     
@@ -168,7 +168,7 @@ class VirtualMachine : DebuggerHelper {
     func movb(p1: Int, p2: Int, p3: Int) {
         let count = registers[p3]
         for i in 0..<count {
-            memory[registers[p2] + i] = memory[registers[p1] + i]
+            memory[2 + registers[p2] + i] = memory[2 + registers[p1] + i]
         }
         programCounter += 4
     }
@@ -184,12 +184,12 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func addmr(p1: Int, p2: Int) {
-        registers[p2] += memory[p1]
+        registers[p2] += memory[2 + p1]
         programCounter += 3
     }
     
     func addxr(p1: Int, p2: Int) {
-        registers[p2] += memory[registers[p1]]
+        registers[p2] += memory[2 + registers[p1]]
         programCounter += 3
     }
     
@@ -204,12 +204,12 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func submr(p1: Int, p2: Int) {
-        registers[p2] -= memory[p1]
+        registers[p2] -= memory[2 + p1]
         programCounter += 3
     }
     
     func subxr(p1: Int, p2: Int) {
-        registers[p2] -= memory[registers[p1]]
+        registers[p2] -= memory[2 + registers[p1]]
         programCounter += 3
     }
     
@@ -224,12 +224,12 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func mulmr(p1: Int, p2: Int) {
-        registers[p2] *= memory[p1]
+        registers[p2] *= memory[2 + p1]
         programCounter += 3
     }
     
     func mulxr(p1: Int, p2: Int) {
-        registers[p2] *= memory[registers[p1]]
+        registers[p2] *= memory[2 + registers[p1]]
         programCounter += 3
     }
     
@@ -244,23 +244,23 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func divmr(p1: Int, p2: Int) {
-        registers[p2] /= memory[p1]
+        registers[p2] /= memory[2 + p1]
         programCounter += 3
     }
     
     func divxr(p1: Int, p2: Int) {
-        registers[p2] /= memory[registers[p1]]
+        registers[p2] /= memory[2 + registers[p1]]
         programCounter += 3
     }
     
     func jmp(p1: Int) {
-        programCounter = p1
+        programCounter = p1 + 2
     }
     
     func sojz(p1: Int, p2: Int) {
         registers[p1] -= 1
         if registers[p1] == 0 {
-            programCounter = p2
+            programCounter = p2 + 2
         } else {
             programCounter += 3
         }
@@ -269,7 +269,7 @@ class VirtualMachine : DebuggerHelper {
     func sojnz(p1: Int, p2: Int) {
         registers[p1] -= 1
         if registers[p1] != 0 {
-            programCounter = p2
+            programCounter = p2 + 2
         } else {
             programCounter += 3
         }
@@ -278,7 +278,7 @@ class VirtualMachine : DebuggerHelper {
     func aojz(p1: Int, p2: Int) {
         registers[p1] += 1
         if registers[p1] == 0 {
-            programCounter = p2
+            programCounter = p2 + 2
         } else {
             programCounter += 3
         }
@@ -287,7 +287,7 @@ class VirtualMachine : DebuggerHelper {
     func aojnz(p1: Int, p2: Int) {
         registers[p1] += 1
         if registers[p1] != 0 {
-            programCounter = p2
+            programCounter = p2 + 2
         } else {
             programCounter += 3
         }
@@ -304,13 +304,13 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func cmpmr(p1: Int, p2: Int) {
-        compareRegister = memory[p1] - registers[p2]
+        compareRegister = memory[2 + p1] - registers[p2]
         programCounter += 3
     }
     
     func jmpn(p1: Int) {
         if compareRegister < 0 {
-            programCounter = p1
+            programCounter = p1 + 2
         } else {
             programCounter += 2
         }
@@ -318,7 +318,7 @@ class VirtualMachine : DebuggerHelper {
     
     func jmpz(p1: Int) {
         if compareRegister == 0 {
-            programCounter = p1
+            programCounter = p1 + 2
         } else {
             programCounter += 2
         }
@@ -326,7 +326,7 @@ class VirtualMachine : DebuggerHelper {
     
     func jmpp(p1: Int) {
         if compareRegister > 0 {
-            programCounter = p1
+            programCounter = p1 + 2
         } else {
             programCounter += 2
         }
@@ -342,11 +342,11 @@ class VirtualMachine : DebuggerHelper {
             }
         }
         stack.push(programCounter + 2)
-        programCounter = p1
+        programCounter = p1 + 2
     }
     
     func ret() {
-        programCounter = stack.pop()
+        programCounter = stack.pop() + 2
         for r in 9.stride(through: 5, by: -1) {
             registers[r] = stack.pop()
             if stack.isEmpty() {
@@ -393,14 +393,14 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func outcx(p1: Int) {
-        print(Character(UnicodeScalar(memory[registers[p1]])), terminator: "")
+        print(Character(UnicodeScalar(memory[2 + registers[p1]])), terminator: "")
         programCounter += 2
     }
     
     func outcb(p1: Int, p2: Int) {
         let count = registers[p2]
         for i in 0..<count {
-            print(Character(UnicodeScalar(memory[registers[p1] + i])), terminator: "")
+            print(Character(UnicodeScalar(memory[2 + registers[p1] + i])), terminator: "")
         }
         programCounter += 3
     }
@@ -436,7 +436,7 @@ class VirtualMachine : DebuggerHelper {
         let chars = line.characters.map{String($0)}
         let count = registers[p2]
         for c in 0..<count {
-            memory[p1 + c] = Int(chars[c].utf8.first!)
+            memory[2 + p1 + c] = Int(chars[c].utf8.first!)
         }
         programCounter += 3
     }
@@ -446,19 +446,19 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func movrx(p1: Int, p2: Int) {
-        memory[registers[p2]] = registers[p1]
+        memory[2 + registers[p2]] = registers[p1]
         programCounter += 3
     }
     
     func movxx(p1: Int, p2: Int) {
-        memory[registers[p2]] = memory[registers[p1]]
+        memory[2 + registers[p2]] = memory[2 + registers[p1]]
         programCounter += 3
     }
     
     func outs(p1: Int) {
         var string = ""
-        for i in 1...memory[p1] {
-            string += String(UnicodeScalar(memory[p1 + i]))
+        for i in 1...memory[2 + p1] {
+            string += String(UnicodeScalar(memory[2 + p1 + i]))
         }
         print(string, terminator:"")
         programCounter += 2
@@ -470,7 +470,7 @@ class VirtualMachine : DebuggerHelper {
     
     func jmpne(p1: Int) {
         if compareRegister != 0 {
-            programCounter = p1
+            programCounter = p1 + 2
         } else {
             programCounter += 2
         }
@@ -478,7 +478,7 @@ class VirtualMachine : DebuggerHelper {
     
     func getMemoryAtAddress(address: Int) -> Int {
         if address >= 0 || address < (memory.count - 1) {
-            return memory[address]
+            return memory[2 + address + 2]
         }
         else {
             return -1
@@ -487,7 +487,7 @@ class VirtualMachine : DebuggerHelper {
     
     func setMemoryAtAddress(address: Int, value: Int) {
         if memory.count > address {
-            memory[address] = value
+            memory[2 + address] = value
         }
         else {
             memory.append(value)
@@ -512,18 +512,14 @@ class VirtualMachine : DebuggerHelper {
         return programCounter
     }
     func setPC(value: Int) {
-        programCounter = value
+        programCounter = value + 2
     }
     
     
     func runVirtualMachine(filePath: String) {
         if readAssembledCommands(filePath) {
-            let db = Debugger(helperH: self, count: memory.count, fileIn: filePath)
-            db.runDebugger()
             var code = memory[programCounter]
             while code != 0 {
-                db.currentMem = programCounter
-                if db.breaks[programCounter] == false {
                 switch Instruction(rawValue: code)! {
                 case .clrr:
                     let param1 = memory[programCounter + 1]
@@ -734,6 +730,230 @@ class VirtualMachine : DebuggerHelper {
                     print("Error: not a valid instruction")
                 }
                 code = memory[programCounter]
+                }
+        } else {
+            print("Error: file does not exist")
+        }
+    }
+
+    func runDebbuger (filePath: String) {
+        if readAssembledCommands(filePath) {
+            let db = Debugger(helperH: self, count: memory.count, fileIn: filePath)
+            db.runDebugger()
+            var code = memory[programCounter]
+            while code != 0 {
+                db.currentMem = programCounter
+                if db.breaks[programCounter] == false {
+                    switch Instruction(rawValue: code)! {
+                    case .clrr:
+                        let param1 = memory[programCounter + 1]
+                        clrr(param1)
+                    case .clrx:
+                        let param1 = memory[programCounter + 1]
+                        clrx(param1)
+                    case .clrm:
+                        let param1 = memory[programCounter + 1]
+                        clrm(param1)
+                    case .clrb:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        clrb(param1, p2: param2)
+                    case .movir:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        movir(param1, p2: param2)
+                    case .movrr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        movrr(param1, p2: param2)
+                    case .movrm:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        movrm(param1, p2: param2)
+                    case .movmr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        movmr(param1, p2: param2)
+                    case .movxr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        movxr(param1, p2: param2)
+                    case .movar:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        movar(param1, p2: param2)
+                    case .movb:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        let param3 = memory[programCounter + 3]
+                        movb(param1, p2: param2, p3: param3)
+                    case .addir:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        addir(param1, p2: param2)
+                    case .addrr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        addrr(param1, p2: param2)
+                    case .addmr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        addmr(param1, p2: param2)
+                    case .addxr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        addxr(param1, p2: param2)
+                    case .subir:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        subir(param1, p2: param2)
+                    case .subrr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        subrr(param1, p2: param2)
+                    case .submr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        submr(param1, p2: param2)
+                    case .subxr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        subxr(param1, p2: param2)
+                    case .mulir:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        mulir(param1, p2: param2)
+                    case .mulrr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        mulrr(param1, p2: param2)
+                    case .mulmr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        mulmr(param1, p2: param2)
+                    case .mulxr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        mulxr(param1, p2: param2)
+                    case .divir:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        divir(param1, p2: param2)
+                    case .divrr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        divrr(param1, p2: param2)
+                    case .divmr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        divmr(param1, p2: param2)
+                    case .divxr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        divxr(param1, p2: param2)
+                    case .jmp:
+                        let param1 = memory[programCounter + 1]
+                        jmp(param1)
+                    case .sojz:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        sojz(param1, p2: param2)
+                    case .sojnz:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        sojnz(param1, p2: param2)
+                    case .aojz:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        aojz(param1, p2: param2)
+                    case .aojnz:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        aojnz(param1, p2: param2)
+                    case .cmpir:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        cmpir(param1, p2: param2)
+                    case .cmprr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        cmprr(param1, p2: param2)
+                    case .cmpmr:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        cmpmr(param1, p2: param2)
+                    case .jmpn:
+                        let param1 = memory[programCounter + 1]
+                        jmpn(param1)
+                    case .jmpz:
+                        let param1 = memory[programCounter + 1]
+                        jmpz(param1)
+                    case .jmpp:
+                        let param1 = memory[programCounter + 1]
+                        jmpp(param1)
+                    case .jsr:
+                        let param1 = memory[programCounter + 1]
+                        jsr(param1)
+                    case .ret:
+                        ret()
+                    case .push:
+                        let param1 = memory[programCounter + 1]
+                        push(param1)
+                    case .pop:
+                        let param1 = memory[programCounter + 1]
+                        pop(param1)
+                    case .stackc:
+                        let param1 = memory[programCounter + 1]
+                        stackc(param1)
+                    case .outci:
+                        let param1 = memory[programCounter + 1]
+                        outci(param1)
+                    case .outcr:
+                        let param1 = memory[programCounter + 1]
+                        outcr(param1)
+                    case .outcx:
+                        let param1 = memory[programCounter + 1]
+                        outcx(param1)
+                    case .outcb:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        outcb(param1, p2: param2)
+                    case .readi:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        readi(param1, p2: param2)
+                    case .printi:
+                        let param1 = memory[programCounter + 1]
+                        printi(param1)
+                    case .readc:
+                        let param1 = memory[programCounter + 1]
+                        readc(param1)
+                    case .readln:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        readln(param1, p2: param2)
+                    case .brk:
+                        brk()
+                    case .movrx:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        movrx(param1, p2: param2)
+                    case .movxx:
+                        let param1 = memory[programCounter + 1]
+                        let param2 = memory[programCounter + 2]
+                        movxx(param1, p2: param2)
+                    case .outs:
+                        let param1 = memory[programCounter + 1]
+                        outs(param1)
+                    case .nop:
+                        nop()
+                    case .jmpne:
+                        let param1 = memory[programCounter + 1]
+                        jmpne(param1)
+                    default:
+                        print("Error: not a valid instruction")
+                    }
+                    code = memory[programCounter]
                 } else {
                     db.runDebugger()
                 }
@@ -742,6 +962,5 @@ class VirtualMachine : DebuggerHelper {
             print("Error: file does not exist")
         }
     }
-    
     
 }
