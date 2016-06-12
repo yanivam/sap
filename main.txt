@@ -1,9 +1,9 @@
 //
 //  main.swift
-//  sap
+//  Assembler
 //
-//  Created by Daniel Korsunsky on 5/12/16.
-//  Copyright © 2016 Daniel Korsunsky. All rights reserved.
+//  Created by Yaniv Amiri on 5/22/16.
+//  Copyright © 2016 Yaniv Amiri. All rights reserved.
 //
 
 import Foundation
@@ -12,6 +12,7 @@ func helpTable() {
     print("Help Table:\n")
     print("\tasm <program name> - assemble the specified program\n")
     print("\trun <program name> - run the specified program\n")
+    print("\tdebug <program name> - debug the specified program\n")
     print("\tpath <path specification> - set the path for the SAP program directory\n")
     print("\tprintlst <program name> - print listing file for the specified program\n")
     print("\tprintbin <program name> - print binary file for the specified program\n")
@@ -25,7 +26,7 @@ func runSAP() {
     helpTable()
     let a = Assembler()
     let vm = VirtualMachine()
-    var sapPath = "/Users/danielkorsunsky/Desktop/sap/sap/"
+    var sapPath = "/Users/Yaniv/Desktop/Assembler/Assembler/"
     var command = a.splitStringByWhiteSpace(a.readFromConsole())
     while command[0] != "quit" {
         switch command[0] {
@@ -35,6 +36,9 @@ func runSAP() {
         case "run":
             let filePath = sapPath + command[1] + "bin.txt"
             vm.runVirtualMachine(filePath)
+        case "debug":
+            let filePath = sapPath + command[1] + "bin.txt"
+            vm.runDebbuger(filePath)
         case "path":
             sapPath = command[1]
         case "printlst":
@@ -58,9 +62,3 @@ func runSAP() {
 }
 
 runSAP()
-
-
-
-
-
-
