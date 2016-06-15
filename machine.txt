@@ -24,6 +24,7 @@ class VirtualMachine : DebuggerHelper {
     var programCounter = 0
     var compareRegister = 0  //difference between compared values
     var stackRegister = 0  //OK: 0, push when full: 1, pop when empty: 2
+    var tempPC = 0
     
     struct Stack {
         var stack: [Int]
@@ -91,8 +92,9 @@ class VirtualMachine : DebuggerHelper {
             for line in lines {
                 memory.append(Int(line)!)
             }
-            length = memory[0] + 2
-            programCounter = memory[1] + 2
+            length = memory.removeFirst()
+            programCounter = memory.removeFirst()
+            tempPC = programCounter
             return true
         } else {
             return false
@@ -117,12 +119,12 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func clrx(p1: Int) {
-        memory[2 + registers[p1]] = 0
+        memory[registers[p1]] = 0
         programCounter += 2
     }
     
     func clrm(p1: Int) {
-        memory[2 + p1] = 0
+        memory[p1] = 0
         programCounter += 2
     }
     
@@ -130,7 +132,7 @@ class VirtualMachine : DebuggerHelper {
         let start = registers[p1]
         let end = start + registers[p2]
         for i in start...end {
-            memory[2 + i] = 0
+            memory[i] = 0
         }
         programCounter += 3
     }
@@ -146,17 +148,17 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func movrm(p1: Int, p2: Int) {
-        memory[2 + p2] = registers[p1]
+        memory[p2] = registers[p1]
         programCounter += 3
     }
     
     func movmr(p1: Int, p2: Int) {
-        registers[p2] = memory[2 + p1]
+        registers[p2] = memory[p1]
         programCounter += 3
     }
     
     func movxr(p1: Int, p2: Int) {
-        registers[p2] = memory[2 + registers[p1]]
+        registers[p2] = memory[registers[p1]]
         programCounter += 3
     }
     
@@ -168,7 +170,7 @@ class VirtualMachine : DebuggerHelper {
     func movb(p1: Int, p2: Int, p3: Int) {
         let count = registers[p3]
         for i in 0..<count {
-            memory[2 + registers[p2] + i] = memory[2 + registers[p1] + i]
+            memory[registers[p2] + i] = memory[registers[p1] + i]
         }
         programCounter += 4
     }
@@ -184,12 +186,12 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func addmr(p1: Int, p2: Int) {
-        registers[p2] += memory[2 + p1]
+        registers[p2] += memory[p1]
         programCounter += 3
     }
     
     func addxr(p1: Int, p2: Int) {
-        registers[p2] += memory[2 + registers[p1]]
+        registers[p2] += memory[registers[p1]]
         programCounter += 3
     }
     
@@ -204,12 +206,12 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func submr(p1: Int, p2: Int) {
-        registers[p2] -= memory[2 + p1]
+        registers[p2] -= memory[p1]
         programCounter += 3
     }
     
     func subxr(p1: Int, p2: Int) {
-        registers[p2] -= memory[2 + registers[p1]]
+        registers[p2] -= memory[registers[p1]]
         programCounter += 3
     }
     
@@ -224,12 +226,12 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func mulmr(p1: Int, p2: Int) {
-        registers[p2] *= memory[2 + p1]
+        registers[p2] *= memory[p1]
         programCounter += 3
     }
     
     func mulxr(p1: Int, p2: Int) {
-        registers[p2] *= memory[2 + registers[p1]]
+        registers[p2] *= memory[registers[p1]]
         programCounter += 3
     }
     
@@ -244,23 +246,23 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func divmr(p1: Int, p2: Int) {
-        registers[p2] /= memory[2 + p1]
+        registers[p2] /= memory[p1]
         programCounter += 3
     }
     
     func divxr(p1: Int, p2: Int) {
-        registers[p2] /= memory[2 + registers[p1]]
+        registers[p2] /= memory[registers[p1]]
         programCounter += 3
     }
     
     func jmp(p1: Int) {
-        programCounter = p1 + 2
+        programCounter = p1
     }
     
     func sojz(p1: Int, p2: Int) {
         registers[p1] -= 1
         if registers[p1] == 0 {
-            programCounter = p2 + 2
+            programCounter = p2
         } else {
             programCounter += 3
         }
@@ -269,7 +271,7 @@ class VirtualMachine : DebuggerHelper {
     func sojnz(p1: Int, p2: Int) {
         registers[p1] -= 1
         if registers[p1] != 0 {
-            programCounter = p2 + 2
+            programCounter = p2
         } else {
             programCounter += 3
         }
@@ -278,7 +280,7 @@ class VirtualMachine : DebuggerHelper {
     func aojz(p1: Int, p2: Int) {
         registers[p1] += 1
         if registers[p1] == 0 {
-            programCounter = p2 + 2
+            programCounter = p2
         } else {
             programCounter += 3
         }
@@ -287,7 +289,7 @@ class VirtualMachine : DebuggerHelper {
     func aojnz(p1: Int, p2: Int) {
         registers[p1] += 1
         if registers[p1] != 0 {
-            programCounter = p2 + 2
+            programCounter = p2
         } else {
             programCounter += 3
         }
@@ -304,13 +306,13 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func cmpmr(p1: Int, p2: Int) {
-        compareRegister = memory[2 + p1] - registers[p2]
+        compareRegister = memory[p1] - registers[p2]
         programCounter += 3
     }
     
     func jmpn(p1: Int) {
         if compareRegister < 0 {
-            programCounter = p1 + 2
+            programCounter = p1
         } else {
             programCounter += 2
         }
@@ -318,7 +320,7 @@ class VirtualMachine : DebuggerHelper {
     
     func jmpz(p1: Int) {
         if compareRegister == 0 {
-            programCounter = p1 + 2
+            programCounter = p1
         } else {
             programCounter += 2
         }
@@ -326,7 +328,7 @@ class VirtualMachine : DebuggerHelper {
     
     func jmpp(p1: Int) {
         if compareRegister > 0 {
-            programCounter = p1 + 2
+            programCounter = p1
         } else {
             programCounter += 2
         }
@@ -342,11 +344,11 @@ class VirtualMachine : DebuggerHelper {
             }
         }
         stack.push(programCounter + 2)
-        programCounter = p1 + 2
+        programCounter = p1
     }
     
     func ret() {
-        programCounter = stack.pop() + 2
+        programCounter = stack.pop()
         for r in 9.stride(through: 5, by: -1) {
             registers[r] = stack.pop()
             if stack.isEmpty() {
@@ -393,14 +395,14 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func outcx(p1: Int) {
-        print(Character(UnicodeScalar(memory[2 + registers[p1]])), terminator: "")
+        print(Character(UnicodeScalar(memory[registers[p1]])), terminator: "")
         programCounter += 2
     }
     
     func outcb(p1: Int, p2: Int) {
         let count = registers[p2]
         for i in 0..<count {
-            print(Character(UnicodeScalar(memory[2 + registers[p1] + i])), terminator: "")
+            print(Character(UnicodeScalar(memory[registers[p1] + i])), terminator: "")
         }
         programCounter += 3
     }
@@ -436,7 +438,7 @@ class VirtualMachine : DebuggerHelper {
         let chars = line.characters.map{String($0)}
         let count = registers[p2]
         for c in 0..<count {
-            memory[2 + p1 + c] = Int(chars[c].utf8.first!)
+            memory[p1 + c] = Int(chars[c].utf8.first!)
         }
         programCounter += 3
     }
@@ -446,19 +448,19 @@ class VirtualMachine : DebuggerHelper {
     }
     
     func movrx(p1: Int, p2: Int) {
-        memory[2 + registers[p2]] = registers[p1]
+        memory[registers[p2]] = registers[p1]
         programCounter += 3
     }
     
     func movxx(p1: Int, p2: Int) {
-        memory[2 + registers[p2]] = memory[2 + registers[p1]]
+        memory[registers[p2]] = memory[registers[p1]]
         programCounter += 3
     }
     
     func outs(p1: Int) {
         var string = ""
-        for i in 1...memory[2 + p1] {
-            string += String(UnicodeScalar(memory[2 + p1 + i]))
+        for i in 1...memory[p1] {
+            string += String(UnicodeScalar(memory[p1 + i]))
         }
         print(string, terminator:"")
         programCounter += 2
@@ -470,7 +472,7 @@ class VirtualMachine : DebuggerHelper {
     
     func jmpne(p1: Int) {
         if compareRegister != 0 {
-            programCounter = p1 + 2
+            programCounter = p1
         } else {
             programCounter += 2
         }
@@ -478,7 +480,7 @@ class VirtualMachine : DebuggerHelper {
     
     func getMemoryAtAddress(address: Int) -> Int {
         if address >= 0 || address < (memory.count - 1) {
-            return memory[2 + address + 2]
+            return memory[address]
         }
         else {
             return -1
@@ -487,7 +489,7 @@ class VirtualMachine : DebuggerHelper {
     
     func setMemoryAtAddress(address: Int, value: Int) {
         if memory.count > address {
-            memory[2 + address] = value
+            memory[address] = value
         }
         else {
             memory.append(value)
@@ -512,7 +514,7 @@ class VirtualMachine : DebuggerHelper {
         return programCounter
     }
     func setPC(value: Int) {
-        programCounter = value + 2
+        programCounter = value
     }
     
     
@@ -734,6 +736,8 @@ class VirtualMachine : DebuggerHelper {
         } else {
             print("Error: file does not exist")
         }
+        memory.insert(length, atIndex: 0)
+        memory.insert(tempPC, atIndex: 1)
     }
 
     func runDebbuger (filePath: String) {
@@ -744,6 +748,9 @@ class VirtualMachine : DebuggerHelper {
             while code != 0 {
                 db.currentMem = programCounter
                 if db.breaks[programCounter] == false {
+                    if (db.breaksT[programCounter]!) {
+                        db.breaks[programCounter] = true
+                    }
                     switch Instruction(rawValue: code)! {
                     case .clrr:
                         let param1 = memory[programCounter + 1]
@@ -956,11 +963,14 @@ class VirtualMachine : DebuggerHelper {
                     code = memory[programCounter]
                 } else {
                     db.runDebugger()
+                    db.breaks[programCounter] = false
                 }
             }
         } else {
             print("Error: file does not exist")
         }
+        memory.insert(length, atIndex: 0)
+        memory.insert(tempPC, atIndex: 1)
     }
     
 }
