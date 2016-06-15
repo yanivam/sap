@@ -202,6 +202,14 @@ class Debugger {
             return "\(instruction) 0"
         }
     }
+    
+    func singleStep() {
+        breaksT = breaks
+        for i in 0...(breaks.count - 1) {
+            breaks[i] = true
+        }
+        breaks[currentMem] = false
+    }
 
     
     func runDebugger() -> String {
@@ -210,36 +218,28 @@ class Debugger {
         print("\n")
         printHelp()
         breaks = breaksT
-        currentMem = helper.getPC() - 2
+        currentMem = helper.getPC()
         print("\(currentMem):")
         var command = splitStringByWhiteSpace(readFromConsole())
         while command[0] != "exit" {
-            currentMem = helper.getPC() - 2
-            print("\(currentMem):")
+            currentMem = helper.getPC()
             switch command[0] {
             case "setbk":                              //sets a breakpoint at the given location in memory(given by user)
                 if(Int(command[1]) != nil) {
-                    breaks[Int(command[1])! + 2] = true
+                    breaks[Int(command[1])!] = true
                     breaksT = breaks
                 } else if(symbolTable[command[1].lowercaseString] != nil) {
-                    breaks[symbolTable[command[1].lowercaseString]! + 2] = true
+                    breaks[symbolTable[command[1].lowercaseString]!] = true
                     breaksT = breaks
                 } else {
                     print("Address given is not available")
                 }
-            case "setbkrc":                              //sets a breakpoint if a certain register changes
-                if(Int(command[1]) != nil) {
-                    breaks[Int(command[1])! + 2] = true
-                    breaksT = breaks
-                } else {
-                    print("Register given is not available")
-                }
             case "rmbk":                               //removes a breakpoint at the given location in memory(given by user)
                 if(Int(command[1]) != nil) {
-                    breaks[Int(command[1])! + 2] = false
+                    breaks[Int(command[1])!] = false
                     breaksT = breaks
                 } else if(symbolTable[command[1].lowercaseString] != nil) {
-                    breaks[symbolTable[command[1].lowercaseString]! + 2] = false
+                    breaks[symbolTable[command[1].lowercaseString]!] = false
                     breaksT = breaks
                 } else {
                     print("Address given is not available")
@@ -259,7 +259,7 @@ class Debugger {
             case "pbk":
                 for key in breaks {
                     if (key.1 == true) {
-                    print("\(key.0 - 2): \(key.1)")
+                    print("\(key.0): \(key.1)")
                     }
                 }
             case "preg":
@@ -272,11 +272,11 @@ class Debugger {
                 helper.setRegisterNumber(Int(command[1])!, value: Int(command[2])!)
             case "pmem":
                 if(Int(command[1]) != nil) {
-                    for i in Int(command[1])! + 2...(Int(command[2])! - 1) + 2 {
+                    for i in Int(command[1])!...(Int(command[2])! - 1) {
                         print(helper.getMemoryAtAddress(i))
                     }
                 } else if(symbolTable[command[1].lowercaseString] != nil && symbolTable[command[2].lowercaseString] != nil) {
-                    for i in symbolTable[command[1].lowercaseString]! + 2...(symbolTable[command[2].lowercaseString]! - 1) + 2 {
+                    for i in symbolTable[command[1].lowercaseString]!...(symbolTable[command[2].lowercaseString]! - 1) {
                         print(helper.getMemoryAtAddress(i))
                     }
                 } else {
@@ -284,17 +284,17 @@ class Debugger {
                 }
             case "deas":
                 if(Int(command[1]) != nil) {
-                    deas(Int(command[1])! + 2, end: (Int(command[2])! - 1) + 2)
+                    deas(Int(command[1])!, end: (Int(command[2])! - 1))
                 } else if(symbolTable[command[1].lowercaseString] != nil && symbolTable[command[2].lowercaseString] != nil) {
-                    deas(symbolTable[command[1].lowercaseString]! + 2, end: (symbolTable[command[2].lowercaseString]! - 1) + 2)
+                    deas(symbolTable[command[1].lowercaseString]!, end: (symbolTable[command[2].lowercaseString]! - 1))
                 } else {
                     print("Address given is not available")
                 }
             case "wmem":
                 if(Int(command[1]) != nil) {
-                    helper.setMemoryAtAddress(Int(command[1])! + 2, value: Int(command[2])!)
+                    helper.setMemoryAtAddress(Int(command[1])!, value: Int(command[2])!)
                 } else if(symbolTable[command[1].lowercaseString] != nil) {
-                    helper.setMemoryAtAddress(symbolTable[command[1].lowercaseString]! + 2, value: Int(command[2])!)
+                    helper.setMemoryAtAddress(symbolTable[command[1].lowercaseString]!, value: Int(command[2])!)
                 } else {
                     print("Address given is not available")
                 }
@@ -303,14 +303,9 @@ class Debugger {
                     print("\(symbol.0): \(symbol.1)")
                 }
             case "g":
-                helper.setPC(currentMem + 3)
                 return ""
             case "s":
-                breaksT = breaks
-                for i in 0...(breaks.count - 1) {
-                breaks[i] = true
-                }
-                breaks[currentMem + 2] = false
+                singleStep()
                 return ""
             case "help":
                 printHelp()
@@ -322,7 +317,7 @@ class Debugger {
         for i in 0...(breaks.count - 1) {
             breaks[i] = false
         }
-        helper.setMemoryAtAddress(currentMem + 2, value: 0)
+        helper.setMemoryAtAddress(currentMem, value: 0)
         return ""
     }
     
